@@ -304,6 +304,244 @@ public interface IFileStorageService
 - Orphaned records with empty FilePath values will cause duplicate key violations
 - For LocalDB: `dotnet ef database drop --force` also works if EF tools are installed
 
+> **🆕 Contenido generado por el agente** (secciones §7–§9) redactado en español conforme a la política de idioma del proyecto. Las secciones §1–§6 permanecen en su idioma original (inglés) por estar autorizadas por el stakeholder.
+
+---
+
+## 7. Estrategia de Pruebas (Testing Strategy)
+
+> **🆕 Sección añadida — referencia**: Constitución v1.1.0, Principio V (TDD Hard + Pirámide de Pruebas Completa) — **NO NEGOCIABLE**.
+
+Esta sección define la estrategia de pruebas obligatoria para esta feature. **Ningún PR con código de producción sin tests correspondientes es aceptado.** El ciclo **ROJO → VERDE → REFACTOR → REVISIÓN** se aplica a cada historia de usuario, historia técnica o corrección de bug.
+
+### 7.1 Pirámide de Pruebas Completa (8 niveles)
+
+Cada nivel tiene propósito, herramienta, scope y umbral definidos:
+
+| # | Nivel | Propósito | Herramienta .NET | Scope | Umbral mínimo |
+|---|-------|-----------|------------------|-------|----------------|
+| 1 | **Unit funcionales** | Comportamiento observable del dominio (casos de uso, reglas de negocio) | **xUnit** + **NSubstitute** o **Moq** | Una clase/método aislado, sin I/O real | ≥ 80% cobertura de líneas en `Services/Documents/` |
+| 2 | **Unit técnicas** | Edge cases, casos de error, boundaries, mutaciones internas | **xUnit** + **FluentAssertions** | Helpers, extensiones, validadores, mappers de documentos | ≥ 70% en `Utils/Documents/`, `Mappers/Documents/` |
+| 3 | **Componentes** | Renderizado e interacción del componente `DocumentUpload.razor` y `DocumentList.razor` | **bUnit** | Un componente `.razor` con sus dependencias inyectadas | ≥ 60% de los componentes de documentos |
+| 4 | **Integración** | Contratos entre módulos reales (DB, HTTP, AV scanner) | `WebApplicationFactory<Program>` + **Testcontainers** (SQL Server) | Repositorios EF, endpoints, antivirus mock | ≥ 50% cobertura de ramas en `Data/Documents/` y endpoints |
+| 5 | **Contrato** | Compatibilidad API consumidor↔productor (consumer-driven) | **PactNet** + Pact Broker | Endpoints públicos de `/api/documents/**` y DTOs compartidos | 100% de endpoints públicos con pacto verificado |
+| 6 | **E2E API** | Flujos completos a través de la API HTTP | **RestSharp** / `HttpClient` con `WebApplicationFactory` | Flujos críticos: upload, list, search, download, share, delete | 100% de los happy paths |
+| 7 | **E2E UI** | Flujos completos a través del navegador | **Microsoft Playwright** + bUnit para assertions Blazor | User journeys: subir desde la página, descargar, previsualizar, compartir | Smoke + 1 happy path por feature principal |
+| 8 | **Rendimiento** | Latencia, throughput, estabilidad bajo carga | **NBomber** / **k6** / **BenchmarkDotNet** | Ver §7.3 | Ver umbrales §7.3 |
+
+**Cobertura de código** (verificable por el agente `/code-quality`):
+
+- Líneas: **≥ 80%** (target), **≥ 40%** (mínimo absoluto, **bloqueante si < 40%**).
+- Branches: **≥ 75%** (target), **≥ 35%** (mínimo absoluto).
+- Métodos públicos: 100% **DEBEN** estar cubiertos (mínimo 1 test por método).
+- `<ExcludeFromCodeCoverageAttribute>` **PROHIBIDO** salvo justificación aprobada en PR.
+
+### 7.2 Pruebas de Mutación (Mutation Testing)
+
+La cobertura de líneas/branches **NO** es suficiente: un test que ejecuta código sin verificar comportamiento tiene 100% de cobertura y 0% de valor. Las pruebas de mutación validan la **calidad de los tests**.
+
+- **Herramienta**: **Stryker.NET** (mutaciones a nivel de statements, branches, y strings).
+- **Alcance**: `Domain/Documents/`, `Services/Documents/`, validadores de extensión de archivo, parsers de MIME.
+- **Mutation score mínimo**: **≥ 70%** (target **≥ 80%**, **bloqueante si < 70%**).
+- **Frecuencia**: en CI en cada PR; en local antes de pedir review.
+- **Mutantes sobrevivientes**: deben justificarse explícitamente (equivalente a `Stryker.NET` ignore) **O** eliminarse mediante un test que sí detecte la mutación.
+- **Stubs y mappers excluidos** del scope de mutación (mutaciones equivalentes sin valor).
+
+```powershell
+# Comando local
+dotnet stryker --project "src/ContosoDashboard.Services.Documents" `
+  --threshold-break 70 --threshold-high 80 --threshold-low 60
+```
+
+### 7.3 Pirámide de Pruebas de Rendimiento (aplicada a cada nivel)
+
+El rendimiento **NO** se valida solo en producción. Se aplica la **misma pirámide** que a las pruebas funcionales.
+
+| Nivel de pirámide | Tipo de test | Herramienta | Métrica objetivo |
+|-------------------|--------------|-------------|------------------|
+| **Micro/nano** (unit) | Benchmark de un método aislado (ej. `GuidGenerator`, `FilePathBuilder`, `MimeTypeDetector`) | **BenchmarkDotNet** | ns/op, allocs, GC pressure |
+| **Componente** | Latencia de un endpoint individual en aislamiento (sin DB compartida) | **NBomber** scenarios simples, **k6** | p50, p95, p99 por endpoint |
+| **Integración** | Throughput de upload con DB real (Testcontainers) y AV mock | **NBomber** + **Testcontainers** | RPS sostenible, error rate < 0.1% |
+| **Contrato** | Latencia y SLO por endpoint de `/api/documents/**` | **NBomber** contract suite, OpenAPI-driven | p95 < SLO contractual documentado |
+| **E2E sistema** | Carga realista simulando journeys de subida y descarga | **k6** / **JMeter** | Concurrencia objetivo (N usuarios), throughput, TTI p95 |
+| **Resiliencia** | Stress (romper límites), spike (picos), soak (carga sostenida) | **k6** stress profile, **NBomber** soak | Sin degradación > 10% en p95 después de 1h; sin memory leaks |
+
+**Perfiles de carga requeridos** (en E2E sistema):
+
+- **Smoke**: 1 usuario virtual, 1 minuto — verifica que el escenario corre sin errores.
+- **Load**: N usuarios (target de diseño), 10 minutos — capacidad nominal.
+- **Stress**: 2×N usuarios, 5 minutos — punto de quiebre.
+- **Spike**: 0 → 5×N usuarios en 30s, mantener 2 min — elasticidad.
+- **Soak**: N usuarios, 24h+ — estabilidad y leaks.
+
+**Umbrales de aceptación** (gate de merge y release):
+
+- p95 de endpoints de upload: **< 30s** para archivos de 25 MB.
+- p95 de endpoints de list/search: **< 500 ms**.
+- Error rate bajo carga nominal: **< 0.1%**.
+- Memory growth en soak 24h: **< 10%** sobre baseline.
+- CPU saturación bajo load: **< 75%** promedio, **< 90%** p95.
+
+### 7.4 Hot-fixes de seguridad — excepción documentada
+
+Única excepción al ciclo TDD Hard: hot-fixes de seguridad críticos (CVE activo) pueden saltarse el paso ROJO, **DEBEN** incluir tests de regresión en el mismo PR y dejar ticket de seguimiento.
+
+---
+
+## 8. Acceptance Criteria (Criterios de Aceptación)
+
+> **🆕 Sección añadida** — Cada criterio está en formato **Given/When/Then** (Gherkin-like), con condiciones previas, acciones, resultados esperados y umbrales medibles. Cumplen con la constitución v1.1.0 (DoR/DoD verificable).
+
+### AC-1 — Document Upload
+
+**AC-1.1 Selección y subida de archivo**
+
+- **AC-1.1.1**: *Given* un usuario autenticado en `Pages/Documents.razor`, *When* selecciona un archivo PDF de 5 MB y hace clic en "Subir", *Then* el sistema muestra una barra de progreso al 100% en ≤ 10s, y el documento aparece en "Mis Documentos" con título, fecha, tamaño, y tipo MIME `application/pdf`.
+- **AC-1.1.2**: *Given* un usuario con rol Employee, *When* selecciona un archivo de extensión `.exe`, *Then* el sistema rechaza el archivo con mensaje "Tipo de archivo no soportado" y NO se crea ningún registro en la base de datos.
+- **AC-1.1.3**: *Given* un usuario autenticado, *When* selecciona un archivo de 26 MB, *Then* el sistema rechaza con mensaje "Tamaño máximo permitido: 25 MB" y NO se crea ningún registro.
+- **AC-1.1.4**: *Given* un usuario autenticado, *When* selecciona múltiples archivos simultáneamente (5 archivos de 3 MB), *Then* todos se suben en paralelo y se crean 5 documentos con sus respectivos `DocumentId` correlativos.
+- **AC-1.1.5**: *Given* el upload en progreso, *When* el usuario pierde conectividad a la red, *Then* el sistema muestra "Error de red — reintentar" y NO se crean registros huérfanos (rollback automático).
+
+**AC-1.2 Metadata del documento**
+
+- **AC-1.2.1**: *Given* un usuario subiendo un archivo, *When* omite el campo "Título" y hace clic en "Subir", *Then* el sistema valida y rechaza con "El título es obligatorio".
+- **AC-1.2.2**: *Given* un documento subido, *Then* la base de datos contiene automáticamente: `UploadedAt` (UTC), `UploadedBy` (userId del claim `NameIdentifier`), `FileSize` (bytes), `FileType` (MIME).
+- **AC-1.2.3**: *Given* un usuario subiendo, *When* selecciona categoría "Project Documents" y un proyecto de la lista, *Then* el documento se asocia a ese proyecto y aparece en `Pages/Projects/{id}.razor`.
+- **AC-1.2.4**: *Given* un usuario añadiendo tags, *When* introduce 6 tags, *Then* el sistema rechaza con "Máximo 5 tags permitidos".
+- **AC-1.2.5**: *Given* un documento con `FileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"` (longitud ≥ 60 chars), *Then* el campo acepta y persiste correctamente sin truncamiento (columna `NVARCHAR(255)`).
+
+**AC-1.3 Validación y seguridad (antivirus)**
+
+- **AC-1.3.1**: *Given* un archivo limpio, *When* se sube, *Then* el antivirus lo marca como "clean" en ≤ 5s y el documento se persiste.
+- **AC-1.3.2**: *Given* un archivo infectado (firma EICAR test), *When* se sube, *Then* el antivirus lo marca como "infected", el sistema rechaza con "Archivo rechazado: amenaza detectada", y NO se persiste archivo en disco.
+- **AC-1.3.3**: *Given* el servicio de AV no disponible, *When* se sube un archivo en **training**, *Then* el sistema registra warning en log, permite el upload, y muestra una insignia "⚠️ sin verificación AV" en el documento.
+- **AC-1.3.4**: *Given* el servicio de AV no disponible, *When* se sube un archivo en **producción**, *Then* el sistema rechaza con "Servicio de seguridad no disponible — reintente más tarde" (fail-closed).
+- **AC-1.3.5**: *Given* un archivo subido, *Then* el path en disco es `{userId}/{projectIdOrPersonal}/{guid}.{ext}`, **nunca** incluye el nombre original del archivo (anti path-traversal).
+- **AC-1.3.6**: *Given* un archivo `ContentType` con caracteres maliciosos, *Then* el sistema valida contra whitelist de MIME types antes de persistir.
+
+**AC-1.4 Secuencia de subida (orden de operaciones)**
+
+- **AC-1.4.1**: *Given* un upload, *When* el guardado en disco falla (disco lleno), *Then* NO se crea ningún registro en la base de datos.
+- **AC-1.4.2**: *Given* un upload, *When* `SaveChangesAsync` falla (constraint violation), *Then* el archivo en disco se elimina (rollback) y la excepción se propaga al usuario como "Error al guardar — reintente".
+- **AC-1.4.3**: *Given* dos uploads concurrentes del mismo usuario, *Then* ambos obtienen GUIDs distintos y se persisten sin colisión.
+
+### AC-2 — Document Organization and Browsing
+
+- **AC-2.1.1**: *Given* un usuario con 30 documentos, *When* accede a "Mis Documentos", *Then* la página carga en ≤ 2s y muestra los 25 más recientes (paginado, page size 25).
+- **AC-2.1.2**: *Given* un usuario, *When* ordena por "tamaño" descendente, *Then* la lista se reordena en ≤ 200 ms.
+- **AC-2.1.3**: *Given* un usuario, *When* filtra por categoría "Reports" + proyecto "Q4 Planning", *Then* solo aparecen documentos que cumplen ambos filtros.
+- **AC-2.2.1**: *Given* un usuario Team Lead, *When* visualiza `Pages/Projects/5.razor`, *Then* aparecen los documentos del proyecto, y "Subir documento" está habilitado.
+- **AC-2.2.2**: *Given* un usuario Employee NO asignado al proyecto, *When* intenta acceder a `Pages/Projects/5.razor`, *Then* recibe 403 (forbidden).
+- **AC-2.3.1**: *Given* un usuario buscando "presupuesto", *Then* el sistema busca en `Title` + `Description` + `Tags` y devuelve resultados en ≤ 2s.
+- **AC-2.3.2**: *Given* un usuario, *When* busca, *Then* solo aparecen documentos a los que tiene acceso (autorización server-side, no client-side).
+- **AC-2.3.3**: *Given* 10k documentos en el sistema, *Then* la búsqueda retorna primeros 50 resultados ordenados por relevancia en ≤ 2s p95.
+
+### AC-3 — Document Access and Management
+
+- **AC-3.1.1**: *Given* un usuario con acceso, *When* hace clic en "Descargar", *Then* el archivo se sirve con `Content-Disposition: attachment` y el nombre original (NO el GUID).
+- **AC-3.1.2**: *Given* un PDF de 2 MB, *When* el usuario hace clic en "Vista previa", *Then* se renderiza en un `<iframe>` inline en ≤ 3s.
+- **AC-3.1.3**: *Given* un archivo `.docx`, *When* el usuario hace clic en "Vista previa", *Then* se muestra un mensaje "Vista previa no disponible para este tipo de archivo" + botón "Descargar".
+- **AC-3.2.1**: *Given* un usuario dueño del documento, *When* edita el título y guarda, *Then* el cambio persiste y aparece en la lista en ≤ 500 ms.
+- **AC-3.2.2**: *Given* un usuario NO dueño, *When* intenta acceder a `edit/{id}`, *Then* recibe 403.
+- **AC-3.2.3**: *Given* un usuario reemplazando un archivo, *When* sube la nueva versión, *Then* el archivo antiguo se elimina del disco y el `FilePath` se actualiza; el `DocumentId` se mantiene.
+- **AC-3.3.1**: *Given* un usuario dueño, *When* hace clic en "Eliminar" y confirma, *Then* el archivo se elimina del disco en ≤ 100 ms y la fila de DB se borra (cascade `DocumentShare`).
+- **AC-3.3.2**: *Given* un Project Manager, *When* elimina un documento subido por un team member en su proyecto, *Then* la eliminación procede.
+- **AC-3.4.1**: *Given* un usuario dueño, *When* comparte con otro usuario + permiso "Read", *Then* se crea un registro `DocumentShare` y aparece en "Compartido conmigo" del receptor en ≤ 5s.
+- **AC-3.4.2**: *Given* un documento compartido, *When* el dueño revoca el acceso, *Then* el receptor pierde acceso en ≤ 5s.
+- **AC-3.4.3**: *Given* un usuario, *When* recibe un documento compartido, *Then* recibe una notificación in-app vía `INotificationService`.
+
+### AC-4 — Integration
+
+- **AC-4.1.1**: *Given* un usuario en `Pages/Tasks/{id}.razor`, *When* adjunta un documento, *Then* el documento se asocia al `TaskId` y hereda el `ProjectId` del task.
+- **AC-4.1.2**: *Given* un usuario, *When* sube un documento desde una tarea, *Then* el `ProjectId` del documento se copia del task en el momento de la asociación (no se re-evalúa si el task cambia de proyecto).
+- **AC-4.2.1**: *Given* un usuario autenticado, *When* accede a `Pages/Index.razor`, *Then* el widget "Documentos Recientes" muestra los 5 últimos que subió el usuario (orden por `UploadedAt DESC, DocumentId DESC`).
+- **AC-4.2.2**: *Given* un usuario, *Then* las cards de resumen incluyen el conteo total de documentos propios.
+- **AC-4.3.1**: *Given* un usuario A comparte un documento con B, *Then* B recibe una notificación in-app en ≤ 5s.
+- **AC-4.3.2**: *Given* un documento añadido a un proyecto del usuario, *Then* el usuario recibe notificación.
+
+### AC-5 — Performance
+
+- **AC-5.1.1**: *Given* una red LAN 100 Mbps, *When* un usuario sube un archivo de 25 MB, *Then* el upload completa en ≤ 30s (p95).
+- **AC-5.2.1**: *Given* un usuario con 500 documentos, *When* carga "Mis Documentos" (página 1 de 20), *Then* la página renderiza en ≤ 2s (p95).
+- **AC-5.3.1**: *Given* 10k documentos en el sistema, *When* un usuario busca por palabra clave, *Then* los resultados se devuelven en ≤ 2s (p95).
+- **AC-5.4.1**: *Given* un PDF de 2 MB, *When* el usuario hace clic en "Vista previa", *Then* la vista se renderiza en ≤ 3s (p95).
+
+### AC-6 — Reporting and Audit
+
+- **AC-6.1.1**: *Given* una operación de upload, *Then* se registra en log estructurado: `event="document.uploaded", documentId, userId, fileSize, mimeType, timestamp`.
+- **AC-6.1.2**: *Given* un download, *Then* se registra: `event="document.downloaded", documentId, userId, ipAddress, timestamp`.
+- **AC-6.1.3**: *Given* un delete, *Then* se registra: `event="document.deleted", documentId, userId, deletedByUserId, timestamp`.
+- **AC-6.2.1**: *Given* un Administrator, *When* accede a `/admin/reports/documents/types`, *Then* recibe un CSV con "Top 10 tipos MIME por uploads" en ≤ 5s.
+
+---
+
+## 9. Escaneo de Antivirus y Malware (Requisitos Detallados)
+
+> **🆕 Sección añadida** — Detalla §1 "Validation and Security" alineado a constitución v1.1.0 Principio II (OWASP A03 — Injection, A06 — Vulnerable Components).
+
+### 9.1 Proveedor de AV
+
+- **Training (offline)**: **ClamAV** via **nClam** (.NET client) — open-source, sin dependencias cloud, soporta todos los formatos comunes.
+- **Producción (futuro)**: **Microsoft Defender for Cloud** o **ClamAV en contenedor** — decisión se difiere hasta la fase de deployment real (este proyecto es training-only).
+
+### 9.2 Interfaz
+
+```csharp
+public interface IAntivirusScanner
+{
+    Task<ScanResult> ScanAsync(Stream fileStream, string fileName, CancellationToken ct = default);
+}
+
+public record ScanResult(
+    ScanStatus Status,          // Clean, Infected, Error, Timeout
+    string? ThreatName,         // Nombre de la amenaza si aplica
+    TimeSpan Duration,          // Tiempo de escaneo
+    string? ScannerVersion      // Versión del motor de AV
+);
+```
+
+### 9.3 Whitelist de tipos MIME (16 tipos)
+
+| Extensión | MIME Type | Tamaño máx. |
+|-----------|-----------|-------------:|
+| `.pdf` | `application/pdf` | 25 MB |
+| `.doc`, `.docx` | `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | 25 MB |
+| `.xls`, `.xlsx` | `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` | 25 MB |
+| `.ppt`, `.pptx` | `application/vnd.ms-powerpoint`, `application/vnd.openxmlformats-officedocument.presentationml.presentation` | 25 MB |
+| `.txt` | `text/plain` | 5 MB |
+| `.jpg`, `.jpeg` | `image/jpeg` | 10 MB |
+| `.png` | `image/png` | 10 MB |
+
+Cualquier archivo fuera de esta whitelist es rechazado con `400 Bad Request` y mensaje "Tipo de archivo no soportado".
+
+### 9.4 Comportamiento ante fallo del AV
+
+| Entorno | Comportamiento | Justificación |
+|---------|----------------|---------------|
+| **Training** | Log warning + permitir upload + insignia "⚠️ sin verificación AV" | Maximizar disponibilidad para entrenamiento |
+| **Producción** | Rechazar con `503 Service Unavailable` (fail-closed) | Seguridad no es negociable en producción |
+
+### 9.5 Latencia y timeouts
+
+- **Latencia objetivo**: ≤ 5 segundos por archivo de 25 MB.
+- **Timeout**: 30 segundos (después del cual se considera `Timeout`).
+- **Métrica observable**: `_antivirus_scan_duration_seconds` (histogram, Prometheus).
+- **Alerta**: p95 > 10s en dashboards de producción.
+
+### 9.6 Secuencia de operaciones con AV
+
+```
+1. Validar extensión + tamaño (fail-fast, sin AV)
+2. Validar MIME type real (magic bytes, no solo Content-Type del cliente)
+3. Copiar stream a MemoryStream (Blazor safety)
+4. Scan antivirus (síncrono en el flujo de upload)
+5. Si clean → generar GUID + escribir a disco + guardar DB
+6. Si infected → log + rechazar 422
+7. Si error/timeout → comportamiento según entorno (training: allow + flag; prod: 503)
+```
+
+---
+
 ## Assumptions
 
 - Training environment has local disk storage available
