@@ -155,6 +155,7 @@ Como usuario, quiero ver y adjuntar documentos desde una tarea, y ver un widget 
 - **Tag con caracteres especiales**: validar longitud y charset; rechazar con mensaje claro.
 - **Upload de archivo de 0 bytes**: rechazar como tamaño inválido.
 - **ProjectId cambia después de asociar documento**: el documento conserva el ProjectId original (snapshot behavior).
+- **Reemplazo de archivo mientras otro usuario lo descarga**: last-writer-wins con GUID nuevo — la descarga en curso completa con el archivo antiguo; el filename GUID cambia tras replace, así que la próxima GET ve el archivo nuevo. Sin locks de filesystem (consistente con comportamiento de CDNs). Decisión documentada en `## Clarifications` (sesión 2026-06-12).
 
 ---
 
@@ -213,13 +214,13 @@ Como usuario, quiero ver y adjuntar documentos desde una tarea, y ver un widget 
 - **FR-032**: System MUST aplicar `[Authorize]` en todas las páginas Blazor relacionadas con documentos, con políticas por rol (Employee, TeamLead, ProjectManager, Administrator).
 - **FR-033**: System MUST revalidar ownership en el `DocumentService` antes de cada operación (defense in depth): el servicio verifica que el usuario tiene acceso al documento antes de devolver datos.
 - **FR-034**: System MUST registrar en `ActivityLog` cualquier intento de acceso denegado (403) a un documento, con `userId`, `documentId`, y razón.
-- **FR-035**: System MUST [NEEDS CLARIFICATION: comportamiento de sharing entre Project Managers de distintos proyectos — ¿un PM puede compartir un documento de su proyecto con usuarios fuera del proyecto?].
+- **FR-035**: System MUST restringir el sharing de documentos por Project Manager únicamente a team members y otros Project Managers del mismo proyecto (no a usuarios fuera del proyecto). Solo el dueño (uploader) del documento puede compartirlo con cualquier usuario de la organización. Decisión documentada en `## Clarifications` (sesión 2026-06-12) — Principio de menor privilegio, alineado con OWASP A01 (Broken Access Control).
 
 #### Almacenamiento
 
 - **FR-036**: System MUST abstraer el almacenamiento mediante la interfaz `IFileStorageService` con métodos `UploadAsync`, `DownloadAsync`, `DeleteAsync`, `GetUrlAsync`.
 - **FR-037**: System MUST implementar `LocalFileStorageService` (training) usando `System.IO.File`, con paths relativos portables.
-- **FR-038**: System MUST [NEEDS CLARIFICATION: en qué fase se introduce `AzureBlobStorageService` — si en esta release o solo como referencia arquitectónica para migración futura].
+- **FR-038**: System MUST implementar `IFileStorageService` con `LocalFileStorageService` como única implementación concreta en esta release. `AzureBlobStorageService` queda documentado como **referencia arquitectónica** para migración futura (no se implementa, no se agrega SDK, no se mockea). Decisión documentada en `## Clarifications` (sesión 2026-06-12) — alineada con constitución v1.1.0 §Restricciones Adicionales (training-only, offline, sin cloud dependencies).
 
 ### Key Entities
 
@@ -306,3 +307,11 @@ Como usuario, quiero ver y adjuntar documentos desde una tarea, y ver un widget 
 - **Agente de calidad**: `/code-quality` (en `.github/agents/code-quality.agent.md`) ejecuta los gates automatizables.
 - **Skill CRAP**: `.agents/skills/crap-analysis/` (de `aaronontheweb/dotnet-skills`, 1K⭐, 305 installs) para análisis de cobertura + complejidad.
 - **Skill OWASP**: `sigat-security-owasp` (en `~/.agents/skills/`) para los requisitos de seguridad.
+
+## Clarifications
+
+### Session 2026-06-12
+
+- **Q (FR-035)**: ¿Cuál es el comportamiento esperado cuando un Project Manager quiere compartir un documento de su proyecto con usuarios fuera del proyecto? → **A: B — Restringir a su proyecto** (un PM solo comparte dentro de su proyecto: team members y otros PMs del mismo proyecto; solo el dueño puede compartir con cualquier usuario de la organización). Impacto: modela `DocumentShare` con un check de membresía en el servicio; consistente con constitución v1.1.0 §II.A01 (mínimo privilegio / defense in depth).
+- **Q (FR-038)**: ¿Cuál es el alcance de la integración con Azure Blob Storage en esta release? → **A: A — Solo referencia arquitectónica** (`IFileStorageService` + `LocalFileStorageService`; sin SDK de Azure ni mocks). Impacto: reduce el scope a lo esencial para training, evita dependencias cloud no alineadas con constitución §Restricciones Adicionales, libera capacidad para enfocarse en calidad y testing per constitución V.
+- **Q (Edge Case: replace + descarga concurrente)**: ¿Qué comportamiento debe tener el sistema cuando un usuario reemplaza un archivo mientras otro lo está descargando? → **A: B — Last-writer-wins con GUID nuevo** (la descarga en curso completa con el archivo antiguo; el filename GUID cambia tras replace, así que la próxima GET ve el archivo nuevo). Sin locks de filesystem. Impacto: simplifica implementación, evita deadlocks, consistente con CDNs; requiere test de integración con 2 clientes concurrentes para verificar comportamiento.
