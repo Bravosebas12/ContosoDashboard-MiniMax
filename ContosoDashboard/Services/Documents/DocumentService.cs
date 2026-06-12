@@ -72,38 +72,38 @@ public class DocumentService : IDocumentService
     {
         // 1. Validar entrada
         var errors = new List<string>();
-        if (fileStream == null) errors.Add("Archivo requerido.");
-        if (string.IsNullOrWhiteSpace(fileName)) errors.Add("Nombre de archivo requerido.");
-        if (string.IsNullOrWhiteSpace(title)) errors.Add("Título requerido.");
-        else if (title.Length > DocumentConstants.MaxTitleLength) errors.Add($"Título máx. {DocumentConstants.MaxTitleLength} chars.");
-        if (description?.Length > DocumentConstants.MaxDescriptionLength) errors.Add($"Descripción máx. {DocumentConstants.MaxDescriptionLength} chars.");
+        if (fileStream == null) errors.Add("File is required.");
+        if (string.IsNullOrWhiteSpace(fileName)) errors.Add("File name is required.");
+        if (string.IsNullOrWhiteSpace(title)) errors.Add("Title is required.");
+        else if (title.Length > DocumentConstants.MaxTitleLength) errors.Add($"Title max {DocumentConstants.MaxTitleLength} chars.");
+        if (description?.Length > DocumentConstants.MaxDescriptionLength) errors.Add($"Description max {DocumentConstants.MaxDescriptionLength} chars.");
         if (string.IsNullOrWhiteSpace(category) || !DocumentConstants.AllowedCategories.Contains(category))
-            errors.Add($"Categoría inválida. Permitidas: {string.Join(", ", DocumentConstants.AllowedCategories)}");
+            errors.Add($"Invalid category. Allowed: {string.Join(", ", DocumentConstants.AllowedCategories)}");
 
         var extension = Path.GetExtension(fileName).TrimStart('.').ToLowerInvariant();
         if (string.IsNullOrEmpty(extension) || !DocumentConstants.AllowedMimeByExtension.ContainsKey(extension))
-            errors.Add($"Extensión no permitida: {extension}");
+            errors.Add($"File extension not allowed: {extension}");
 
         if (fileStream != null && fileStream.CanSeek) fileStream.Position = 0;
         if (fileStream != null && fileStream.Length > DocumentConstants.MaxFileSizeBytes)
-            errors.Add($"Tamaño máximo permitido: {DocumentConstants.MaxFileSizeBytes / 1024 / 1024} MB.");
+            errors.Add($"Maximum file size: {DocumentConstants.MaxFileSizeBytes / 1024 / 1024} MB.");
 
         // Validar tags
         if (!string.IsNullOrEmpty(tags))
         {
             var tagList = tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (tagList.Length > DocumentConstants.MaxTags)
-                errors.Add($"Máx. {DocumentConstants.MaxTags} tags permitidos (recibidos: {tagList.Length}).");
+                errors.Add($"Max {DocumentConstants.MaxTags} tags allowed (received: {tagList.Length}).");
             foreach (var t in tagList)
                 if (t.Length > DocumentConstants.MaxTagLength)
-                    errors.Add($"Tag '{t[..Math.Min(t.Length, 20)]}...' excede {DocumentConstants.MaxTagLength} chars.");
+                    errors.Add($"Tag '{t[..Math.Min(t.Length, 20)]}...' exceeds {DocumentConstants.MaxTagLength} chars.");
         }
 
         // Validar project access si se especifica
         if (projectId.HasValue)
         {
             var isMember = await IsUserProjectMemberAsync(currentUserId, projectId.Value, ct);
-            if (!isMember) errors.Add($"No tienes acceso al proyecto {projectId.Value}.");
+            if (!isMember) errors.Add($"You don't have access to project {projectId.Value}.");
         }
 
         if (errors.Count > 0) throw new DocumentValidationException(errors);
@@ -132,20 +132,14 @@ public class DocumentService : IDocumentService
             if (task != null) projectId = task.ProjectId;
         }
 
-        // 5. Calcular el directorio donde vivirá el archivo (sin el GUID; el storage lo genera).
-        // IMPORTANTE: el path que devuelve _storage.UploadAsync contiene el GUID que el storage
-        // eligió. La BD DEBE guardar ese path exacto, no uno calculado por separado, porque
-        // de lo contrario se rompe la correspondencia entre FilePath (DB) y archivo en disco.
-        var relativeDirectory = projectId.HasValue
-            ? $"{currentUserId}/{projectId.Value}"
-            : $"{currentUserId}/personal";
+        // 5. Generar path seguro
+        var relativePath = _pathBuilder.BuildPath(currentUserId.ToString(), projectId, extension);
 
         // 6. Persistir archivo en disco
         if (fileStream.CanSeek) fileStream.Position = 0;
-        string relativePath;
         try
         {
-            relativePath = await _storage.UploadAsync(fileStream, relativeDirectory, extension, ct);
+            await _storage.UploadAsync(fileStream, Path.GetDirectoryName(relativePath)!.Replace('\\', '/'), extension, ct);
         }
         catch (Exception ex)
         {
@@ -412,13 +406,12 @@ public class DocumentService : IDocumentService
         if (scan.Status == ScanStatus.Infected)
             throw new DocumentInfectedException(scan.ThreatName);
 
-        // El storage genera el GUID; usamos su path devuelto para que coincida con disco.
-        var replaceDir = doc.ProjectId.HasValue
-            ? $"{currentUserId}/{doc.ProjectId.Value}"
-            : $"{currentUserId}/personal";
+        // New GUID (last-writer-wins: per Clarifications Q3)
+        var newPath = _pathBuilder.BuildPath(currentUserId.ToString(), doc.ProjectId, extension);
 
         if (newFileStream.CanSeek) newFileStream.Position = 0;
-        var newPath = await _storage.UploadAsync(newFileStream, replaceDir, extension, ct);
+        var newDir = Path.GetDirectoryName(newPath)!.Replace('\\', '/');
+        await _storage.UploadAsync(newFileStream, newDir, extension, ct);
 
         var oldSize = doc.FileSize;
         doc.FilePath = newPath;

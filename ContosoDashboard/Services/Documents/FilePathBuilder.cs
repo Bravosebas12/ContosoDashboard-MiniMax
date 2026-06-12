@@ -29,8 +29,8 @@ public class FilePathBuilder : IFilePathBuilder
 
     public string BuildPath(string userId, int? projectId, string fileExtension)
     {
-        if (string.IsNullOrWhiteSpace(userId)) throw new ArgumentException("userId requerido.", nameof(userId));
-        if (string.IsNullOrWhiteSpace(fileExtension)) throw new ArgumentException("Extensión requerida.", nameof(fileExtension));
+        if (string.IsNullOrWhiteSpace(userId)) throw new ArgumentException("userId is required.", nameof(userId));
+        if (string.IsNullOrWhiteSpace(fileExtension)) throw new ArgumentException("File extension is required.", nameof(fileExtension));
 
         var cleanUserId = SanitizeSegment(userId);
         var segment = projectId.HasValue ? projectId.Value.ToString() : "personal";
@@ -51,7 +51,7 @@ public class FilePathBuilder : IFilePathBuilder
         // Permitir solo letras, dígitos, guiones y underscores; max 50 chars
         var cleaned = Regex.Replace(segment, @"[^\w\-]", "");
         if (cleaned.Length > 50) cleaned = cleaned.Substring(0, 50);
-        if (string.IsNullOrEmpty(cleaned)) throw new ArgumentException("Segmento inválido tras sanitización.", nameof(segment));
+        if (string.IsNullOrEmpty(cleaned)) throw new ArgumentException("Invalid path segment after sanitization.", nameof(segment));
         return cleaned;
     }
 }

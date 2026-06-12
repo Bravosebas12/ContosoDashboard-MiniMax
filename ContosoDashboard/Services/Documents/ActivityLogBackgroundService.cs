@@ -53,7 +53,7 @@ public class ActivityLogBackgroundService : BackgroundService
                     // Try/catch interno: un fallo de persistencia NO debe tumbar el consumer
                     // (A5 — resiliencia). Log estructurado y continúa con la siguiente entry.
                     _logger.LogError(ex,
-                        "Fallo al persistir ActivityLog entry {Event} (user={UserId}, doc={DocumentId})",
+                        "Failed to persist ActivityLog entry {Event} (user={UserId}, doc={DocumentId})",
                         entry.Event, entry.UserId, entry.DocumentId);
                 }
             }

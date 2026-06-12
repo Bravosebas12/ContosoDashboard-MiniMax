@@ -65,7 +65,7 @@ public class ClamAvScanner : IAntivirusScanner
         catch (Exception ex) when (IsConnectivityError(ex))
         {
             sw.Stop();
-            _logger.LogWarning(ex, "ClamAV no disponible en {Host}:{Port} tras {Elapsed}ms", _options.Host, _options.Port, sw.ElapsedMilliseconds);
+            _logger.LogWarning(ex, "ClamAV unavailable at {Host}:{Port} after {Elapsed}ms", _options.Host, _options.Port, sw.ElapsedMilliseconds);
 
             // Fail-open en training, fail-closed en producción (controlado por AllowDegradedMode)
             var status = _options.AllowDegradedMode ? ScanStatus.NotScanned : ScanStatus.Error;

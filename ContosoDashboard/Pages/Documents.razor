@@ -1,4 +1,4 @@
-@* Página principal de "Mis Documentos" — listado + upload. Ver FR-013, FR-014. *@
+@* Main page for "My Documents" — listing + upload. See FR-013, FR-014. *@
 @page "/documents"
 @attribute [Authorize(Policy = "Employee")]
 @using Microsoft.AspNetCore.Authorization
@@ -9,20 +9,20 @@
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 
-<PageTitle>Mis Documentos</PageTitle>
+<PageTitle>My Documents</PageTitle>
 
 <div class="container mt-4">
-    <h1>Mis Documentos</h1>
+    <h1>My Documents</h1>
 
     <DocumentUploadComponent OnUploaded="HandleUploaded" />
 
     @if (_documents == null)
     {
-        <p><em>Cargando...</em></p>
+        <p><em>Loading...</em></p>
     }
     else if (_documents.Items.Count == 0)
     {
-        <div class="alert alert-info">No tienes documentos todavía. Sube el primero arriba.</div>
+        <div class="alert alert-info">You don't have any documents yet. Upload your first one above.</div>
     }
     else
     {
@@ -31,12 +31,12 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th @onclick="() => SortBy(DocumentSortBy.Title)" style="cursor:pointer">Título @SortIndicator(DocumentSortBy.Title)</th>
-                            <th>Categoría</th>
-                            <th>Tamaño</th>
-                            <th>Tipo</th>
-                            <th @onclick="() => SortBy(DocumentSortBy.UploadedAt)" style="cursor:pointer">Subido @SortIndicator(DocumentSortBy.UploadedAt)</th>
-                            <th>Acciones</th>
+                            <th @onclick="() => SortBy(DocumentSortBy.Title)" style="cursor:pointer">Title @SortIndicator(DocumentSortBy.Title)</th>
+                            <th>Category</th>
+                            <th>Size</th>
+                            <th>Type</th>
+                            <th @onclick="() => SortBy(DocumentSortBy.UploadedAt)" style="cursor:pointer">Uploaded @SortIndicator(DocumentSortBy.UploadedAt)</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -49,7 +49,7 @@
                                 <td><small>@d.FileType</small></td>
                                 <td>@d.UploadedAt.ToString("yyyy-MM-dd HH:mm")</td>
                                 <td>
-                                    <a href="/documents/details/@d.DocumentId" class="btn btn-sm btn-outline-primary" aria-label="Ver detalles de @d.Title">Ver detalles</a>
+                                    <a href="/documents/details/@d.DocumentId" class="btn btn-sm btn-outline-primary" aria-label="View details of @d.Title">View details</a>
                                 </td>
                             </tr>
                         }
@@ -58,11 +58,11 @@
                 <nav>
                     <ul class="pagination">
                         <li class="page-item @(_documents.HasPrevious ? "" : "disabled")">
-                            <button class="page-link" @onclick="PrevPage">Anterior</button>
+                            <button class="page-link" @onclick="PrevPage">Previous</button>
                         </li>
                         <li class="page-item active"><span class="page-link">@_documents.Page / @_documents.TotalPages</span></li>
                         <li class="page-item @(_documents.HasNext ? "" : "disabled")">
-                            <button class="page-link" @onclick="NextPage">Siguiente</button>
+                            <button class="page-link" @onclick="NextPage">Next</button>
                         </li>
                     </ul>
                 </nav>

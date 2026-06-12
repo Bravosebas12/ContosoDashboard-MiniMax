@@ -72,7 +72,7 @@ public class DocumentNotFoundException : Exception
 {
     public int DocumentId { get; }
     public DocumentNotFoundException(int documentId)
-        : base($"Documento {documentId} no encontrado.") => DocumentId = documentId;
+        : base($"Document {documentId} not found.") => DocumentId = documentId;
 }
 
 public class DocumentUnauthorizedAccessException : Exception
@@ -80,7 +80,7 @@ public class DocumentUnauthorizedAccessException : Exception
     public int DocumentId { get; }
     public string UserId { get; }
     public DocumentUnauthorizedAccessException(int documentId, string userId)
-        : base($"Usuario '{userId}' no tiene acceso al documento {documentId}.")
+        : base($"User '{userId}' does not have access to document {documentId}.")
     {
         DocumentId = documentId;
         UserId = userId;
@@ -91,14 +91,14 @@ public class DocumentValidationException : Exception
 {
     public IReadOnlyList<string> Errors { get; }
     public DocumentValidationException(IReadOnlyList<string> errors)
-        : base("Validación fallida: " + string.Join("; ", errors)) => Errors = errors;
+        : base("Validation failed: " + string.Join("; ", errors)) => Errors = errors;
 }
 
 public class DocumentInfectedException : Exception
 {
     public string? ThreatName { get; }
     public DocumentInfectedException(string? threatName)
-        : base($"Archivo rechazado: amenaza detectada ({threatName ?? "desconocida"}).")
+        : base($"File rejected: threat detected ({threatName ?? "unknown"}).")
         => ThreatName = threatName;
 }
 

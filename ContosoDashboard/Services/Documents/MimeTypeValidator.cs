@@ -38,11 +38,11 @@ public class MimeTypeValidator : IMimeTypeValidator
     public async Task<string?> ValidateAndDetectAsync(Stream fileStream, string declaredExtension, CancellationToken ct = default)
     {
         if (fileStream == null) throw new ArgumentNullException(nameof(fileStream));
-        if (string.IsNullOrWhiteSpace(declaredExtension)) throw new ArgumentException("Extensión requerida.", nameof(declaredExtension));
+        if (string.IsNullOrWhiteSpace(declaredExtension)) throw new ArgumentException("File extension is required.", nameof(declaredExtension));
 
         var cleanExt = declaredExtension.TrimStart('.').ToLowerInvariant();
         if (!DocumentConstants.AllowedMimeByExtension.ContainsKey(cleanExt))
-            throw new InvalidDataException($"Extensión no permitida: {cleanExt}");
+            throw new InvalidDataException($"File extension not allowed: {cleanExt}");
 
         // Guardar posición original del stream
         var originalPosition = fileStream.CanSeek ? fileStream.Position : 0;
@@ -79,7 +79,7 @@ public class MimeTypeValidator : IMimeTypeValidator
                 else
                 {
                     throw new InvalidDataException(
-                        $"El signature del archivo ({ext}) no coincide con la extensión declarada ({cleanExt}). Posible spoofing.");
+                        $"The file signature ({ext}) does not match the declared extension ({cleanExt}). Possible spoofing.");
                 }
             }
         }

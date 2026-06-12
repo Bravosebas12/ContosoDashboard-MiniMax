@@ -321,29 +321,29 @@ namespace ContosoDashboard.Migrations
                 columns: new[] { "UserId", "AvailabilityStatus", "CreatedDate", "Department", "DisplayName", "Email", "EmailNotificationsEnabled", "InAppNotificationsEnabled", "JobTitle", "LastLoginDate", "PhoneNumber", "ProfilePhotoUrl", "Role" },
                 values: new object[,]
                 {
-                    { 1, 0, new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(7962), "IT", "System Administrator", "admin@contoso.com", true, true, "Administrator", null, null, null, 3 },
-                    { 2, 0, new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(7965), "Engineering", "Camille Nicole", "camille.nicole@contoso.com", true, true, "Project Manager", null, null, null, 2 },
-                    { 3, 0, new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(7967), "Engineering", "Floris Kregel", "floris.kregel@contoso.com", true, true, "Team Lead", null, null, null, 1 },
-                    { 4, 0, new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(7970), "Engineering", "Ni Kang", "ni.kang@contoso.com", true, true, "Software Engineer", null, null, null, 0 }
+                    { 1, 0, new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2102), "IT", "System Administrator", "admin@contoso.com", true, true, "Administrator", null, null, null, 3 },
+                    { 2, 0, new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2105), "Engineering", "Camille Nicole", "camille.nicole@contoso.com", true, true, "Project Manager", null, null, null, 2 },
+                    { 3, 0, new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2107), "Engineering", "Floris Kregel", "floris.kregel@contoso.com", true, true, "Team Lead", null, null, null, 1 },
+                    { 4, 0, new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2110), "Engineering", "Ni Kang", "ni.kang@contoso.com", true, true, "Software Engineer", null, null, null, 0 }
                 });
 
             migrationBuilder.InsertData(
                 table: "Announcements",
                 columns: new[] { "AnnouncementId", "Content", "CreatedByUserId", "ExpiryDate", "IsActive", "PublishDate", "Title" },
-                values: new object[] { 1, "Welcome to the new ContosoDashboard application. This platform will help you manage your tasks and projects more efficiently.", 1, new DateTime(2026, 7, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8595), true, new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8593), "Welcome to ContosoDashboard" });
+                values: new object[] { 1, "Welcome to the new ContosoDashboard application. This platform will help you manage your tasks and projects more efficiently.", 1, new DateTime(2026, 7, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2521), true, new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2521), "Welcome to ContosoDashboard" });
 
             migrationBuilder.InsertData(
                 table: "Projects",
                 columns: new[] { "ProjectId", "CreatedDate", "Description", "Name", "ProjectManagerId", "StartDate", "Status", "TargetCompletionDate", "UpdatedDate" },
-                values: new object[] { 1, new DateTime(2026, 5, 13, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8479), "Internal employee productivity dashboard", "ContosoDashboard Development", 2, new DateTime(2026, 5, 13, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8469), 1, new DateTime(2026, 8, 11, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8475), new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8479) });
+                values: new object[] { 1, new DateTime(2026, 5, 13, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2437), "Internal employee productivity dashboard", "ContosoDashboard Development", 2, new DateTime(2026, 5, 13, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2430), 1, new DateTime(2026, 8, 11, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2434), new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2438) });
 
             migrationBuilder.InsertData(
                 table: "ProjectMembers",
                 columns: new[] { "ProjectMemberId", "AssignedDate", "ProjectId", "Role", "UserId" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2026, 5, 13, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8559), 1, "TeamLead", 3 },
-                    { 2, new DateTime(2026, 5, 13, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8561), 1, "Developer", 4 }
+                    { 1, new DateTime(2026, 5, 13, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2499), 1, "TeamLead", 3 },
+                    { 2, new DateTime(2026, 5, 13, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2501), 1, "Developer", 4 }
                 });
 
             migrationBuilder.InsertData(
@@ -351,9 +351,9 @@ namespace ContosoDashboard.Migrations
                 columns: new[] { "TaskId", "AssignedUserId", "CreatedByUserId", "CreatedDate", "Description", "DueDate", "Priority", "ProjectId", "Status", "Title", "UpdatedDate" },
                 values: new object[,]
                 {
-                    { 1, 4, 2, new DateTime(2026, 5, 13, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8515), "Create entity relationship diagram and database design", new DateTime(2026, 5, 23, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8513), 2, 1, 2, "Design database schema", new DateTime(2026, 5, 23, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8516) },
-                    { 2, 4, 2, new DateTime(2026, 5, 18, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8520), "Set up Microsoft Entra ID authentication", new DateTime(2026, 6, 17, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8518), 3, 1, 1, "Implement authentication", new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8520) },
-                    { 3, 4, 2, new DateTime(2026, 5, 23, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8523), "Design user interface mockups for all main pages", new DateTime(2026, 6, 22, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8522), 1, 1, 0, "Create UI mockups", new DateTime(2026, 5, 23, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8524) }
+                    { 1, 4, 2, new DateTime(2026, 5, 13, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2465), "Create entity relationship diagram and database design", new DateTime(2026, 5, 23, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2463), 2, 1, 2, "Design database schema", new DateTime(2026, 5, 23, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2465) },
+                    { 2, 4, 2, new DateTime(2026, 5, 18, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2468), "Set up Microsoft Entra ID authentication", new DateTime(2026, 6, 17, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2467), 3, 1, 1, "Implement authentication", new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2469) },
+                    { 3, 4, 2, new DateTime(2026, 5, 23, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2472), "Design user interface mockups for all main pages", new DateTime(2026, 6, 22, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2471), 1, 1, 0, "Create UI mockups", new DateTime(2026, 5, 23, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2472) }
                 });
 
             migrationBuilder.CreateIndex(

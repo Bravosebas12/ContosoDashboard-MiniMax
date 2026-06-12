@@ -12,23 +12,23 @@
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 
-<PageTitle>@(_doc?.Title ?? "Documento") - ContosoDashboard</PageTitle>
+<PageTitle>@(_doc?.Title ?? "Document") - ContosoDashboard</PageTitle>
 
 <div class="container mt-4">
     @if (_loading)
     {
-        <p><em>Cargando...</em></p>
+        <p><em>Loading...</em></p>
     }
     else if (_doc == null)
     {
-        <div class="alert alert-warning">No se encontró el documento o no tienes acceso.</div>
-        <a href="/documents" class="btn btn-secondary">Volver</a>
+        <div class="alert alert-warning">The document was not found or you do not have access.</div>
+        <a href="/documents" class="btn btn-secondary">Back</a>
     }
     else
     {
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/documents">Mis Documentos</a></li>
+                <li class="breadcrumb-item"><a href="/documents">My Documents</a></li>
                 <li class="breadcrumb-item active">@_doc.Title</li>
             </ol>
         </nav>
@@ -48,21 +48,21 @@
                         <table class="table table-sm">
                             <tbody>
                                 <tr>
-                                    <th style="width:30%">Tipo</th>
+                                    <th style="width:30%">Type</th>
                                     <td><code>@_doc.FileType</code></td>
                                 </tr>
                                 <tr>
-                                    <th>Tamaño</th>
+                                    <th>Size</th>
                                     <td>@FormatSize(_doc.FileSize)</td>
                                 </tr>
                                 <tr>
-                                    <th>Subido</th>
+                                    <th>Uploaded</th>
                                     <td>@_doc.UploadedAt.ToString("yyyy-MM-dd HH:mm") UTC</td>
                                 </tr>
                                 @if (_doc.ReplacedAt.HasValue)
                                 {
                                     <tr>
-                                        <th>Reemplazado</th>
+                                        <th>Replaced</th>
                                         <td>@_doc.ReplacedAt.Value.ToString("yyyy-MM-dd HH:mm") UTC</td>
                                     </tr>
                                 }
@@ -79,18 +79,18 @@
                                     </tr>
                                 }
                                 <tr>
-                                    <th>Estado AV</th>
+                                    <th>AV Status</th>
                                     <td>
                                         @switch (_doc.AvScanStatus)
                                         {
                                             case DocumentAvStatus.Clean:
-                                                <span class="badge bg-success">✓ Limpio</span>
+                                                <span class="badge bg-success">✓ Clean</span>
                                                 break;
                                             case DocumentAvStatus.Infected:
-                                                <span class="badge bg-danger">⚠ Infectado</span>
+                                                <span class="badge bg-danger">⚠ Infected</span>
                                                 break;
                                             case DocumentAvStatus.NotScanned:
-                                                <span class="badge bg-warning">⚠ Sin verificación</span>
+                                                <span class="badge bg-warning">⚠ Not verified</span>
                                                 break;
                                             default:
                                                 <span class="badge bg-secondary">Error</span>
@@ -106,7 +106,7 @@
                 @if (IsPreviewable())
                 {
                     <div class="card mb-3">
-                        <div class="card-header"><h5 class="mb-0">Vista previa</h5></div>
+                        <div class="card-header"><h5 class="mb-0">Preview</h5></div>
                         <div class="card-body">
                             <DocumentPreviewComponent Document="@_doc" />
                         </div>
@@ -116,24 +116,24 @@
 
             <div class="col-md-5">
                 <div class="card mb-3">
-                    <div class="card-header"><h5 class="mb-0">Acciones</h5></div>
+                    <div class="card-header"><h5 class="mb-0">Actions</h5></div>
                     <div class="card-body d-grid gap-2">
-                        <a href="/DocumentFiles/Download?id=@_doc.DocumentId" class="btn btn-primary" aria-label="Descargar documento @_doc.OriginalFileName">
-                            ⬇ Descargar (@FormatSize(_doc.FileSize))
+                        <a href="/DocumentFiles/Download?id=@_doc.DocumentId" class="btn btn-primary" aria-label="Download document @_doc.OriginalFileName">
+                            ⬇ Download (@FormatSize(_doc.FileSize))
                         </a>
                         @if (IsPreviewable())
                         {
-                            <a href="/DocumentFiles/Preview?id=@_doc.DocumentId" target="_blank" class="btn btn-outline-primary" aria-label="Abrir vista previa en pestaña nueva">
-                                👁 Vista previa en pestaña nueva
+                            <a href="/DocumentFiles/Preview?id=@_doc.DocumentId" target="_blank" class="btn btn-outline-primary" aria-label="Open preview in a new tab">
+                                👁 Preview in a new tab
                             </a>
                         }
                         <hr />
                         @if (IsOwner)
                         {
-                            <button class="btn btn-outline-secondary" @onclick="ShowEditMetadata">✏ Editar metadata</button>
-                            <button class="btn btn-outline-secondary" @onclick="ShowReplaceDialog">🔄 Reemplazar archivo</button>
-                            <button class="btn btn-outline-info" @onclick="ShowShareDialog">🔗 Compartir</button>
-                            <button class="btn btn-outline-danger" @onclick="OpenDeleteDialog">🗑 Eliminar</button>
+                            <button class="btn btn-outline-secondary" @onclick="ShowEditMetadata">✏ Edit metadata</button>
+                            <button class="btn btn-outline-secondary" @onclick="ShowReplaceDialog">🔄 Replace file</button>
+                            <button class="btn btn-outline-info" @onclick="ShowShareDialog">🔗 Share</button>
+                            <button class="btn btn-outline-danger" @onclick="OpenDeleteDialog">🗑 Delete</button>
                         }
                     </div>
                 </div>
@@ -141,14 +141,14 @@
                 @if (IsOwner && _showReplaceDialog)
                 {
                     <div class="card mb-3">
-                        <div class="card-header">Reemplazar archivo</div>
+                        <div class="card-header">Replace file</div>
                         <div class="card-body">
                             <InputFile OnChange="HandleReplaceFile" class="form-control mb-2" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" />
                             @if (_replaceFile != null)
                             {
                                 <p class="small text-muted">@_replaceFile.Name (@((_replaceFile.Size / 1024.0).ToString("N1")) KB)</p>
-                                <button class="btn btn-warning btn-sm" @onclick="ConfirmReplace">Confirmar reemplazo</button>
-                                <button class="btn btn-secondary btn-sm ms-2" @onclick="() => _showReplaceDialog = false">Cancelar</button>
+                                <button class="btn btn-warning btn-sm" @onclick="ConfirmReplace">Confirm replacement</button>
+                                <button class="btn btn-secondary btn-sm ms-2" @onclick="() => _showReplaceDialog = false">Cancel</button>
                             }
                         </div>
                     </div>
@@ -158,17 +158,17 @@
                 {
                     <div class="card mb-3">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Compartido con...</h5>
+                            <h5 class="mb-0">Shared with...</h5>
                             <span class="badge bg-secondary">@_activeShares.Count</span>
                         </div>
                         <div class="card-body">
                             @if (_loadingShares)
                             {
-                                <p class="text-muted small mb-0"><em>Cargando...</em></p>
+                                <p class="text-muted small mb-0"><em>Loading...</em></p>
                             }
                             else if (_activeShares.Count == 0)
                             {
-                                <p class="text-muted small mb-0">Este documento no se ha compartido con nadie todavía.</p>
+                                <p class="text-muted small mb-0">This document has not been shared with anyone yet.</p>
                             }
                             else
                             {
@@ -183,12 +183,12 @@
                                                     @share.Permission.ToString()
                                                     @if (share.ExpiresAt.HasValue)
                                                     {
-                                                        <span> · Expira: @share.ExpiresAt.Value.ToString("yyyy-MM-dd")</span>
+                                                        <span> · Expires: @share.ExpiresAt.Value.ToString("yyyy-MM-dd")</span>
                                                     }
                                                 </small>
                                             </div>
                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => RevokeShareAsync(share.DocumentShareId)">
-                                                Revocar
+                                                Revoke
                                             </button>
                                         </li>
                                     }
@@ -280,7 +280,7 @@
         {
             _activeShares = (await ShareService.ListActiveSharesAsync(_doc.DocumentId, _currentUserId)).ToList();
         }
-        catch (Exception ex) { _errorMessage = $"Error al cargar shares: {ex.Message}"; }
+        catch (Exception ex) { _errorMessage = $"Error loading shares: {ex.Message}"; }
         finally { _loadingShares = false; }
     }
 
@@ -322,7 +322,7 @@
             _errorMessage = "Metadata actualizada.";
         }
         catch (ContosoDashboard.Services.Documents.DocumentValidationException ex) { _errorMessage = string.Join("; ", ex.Errors); }
-        catch (Exception ex) { _errorMessage = $"Error al guardar: {ex.Message}"; }
+        catch (Exception ex) { _errorMessage = $"Error saving: {ex.Message}"; }
     }
 
     private void HandleReplaceFile(InputFileChangeEventArgs e) => _replaceFile = e.File;
@@ -371,7 +371,7 @@
         }
         catch (ContosoDashboard.Services.Documents.DocumentUnauthorizedAccessException ex) { _deleteErrorMessage = ex.Message; }
         catch (ContosoDashboard.Services.Documents.DocumentNotFoundException) { _deleteErrorMessage = "El documento ya no existe."; }
-        catch (Exception ex) { _deleteErrorMessage = $"Error al eliminar: {ex.Message}"; }
+        catch (Exception ex) { _deleteErrorMessage = $"Error deleting: {ex.Message}"; }
         finally { _deleteBusy = false; }
     }
 
@@ -398,8 +398,8 @@
         {
             var result = await ShareService.ShareAsync(request, _currentUserId);
             _errorMessage = result.NotificationDelivered
-                ? "Documento compartido. Notificación enviada."
-                : "Documento compartido. (Notificación no entregada — el receptor la verá al refrescar.)";
+                ? "Document shared. Notification sent."
+                : "Document shared. (Notification not delivered — the recipient will see it on refresh.)";
             _showShareDialog = false;
             await LoadActiveSharesAsync();
         }
@@ -414,7 +414,7 @@
 
     private async Task RevokeShareAsync(int documentShareId)
     {
-        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "¿Revocar este acceso? El receptor perderá el permiso inmediatamente.");
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Revoke this access? The recipient will lose permission immediately.");
         if (!confirmed) return;
         try
         {

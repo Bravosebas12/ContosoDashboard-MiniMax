@@ -36,25 +36,25 @@ public class LocalFileStorageService : IFileStorageService
     public async Task<string> UploadAsync(Stream fileStream, string relativeDirectory, string fileExtension, CancellationToken ct = default)
     {
         if (fileStream == null) throw new ArgumentNullException(nameof(fileStream));
-        if (string.IsNullOrWhiteSpace(relativeDirectory)) throw new ArgumentException("Directorio requerido.", nameof(relativeDirectory));
-        if (string.IsNullOrWhiteSpace(fileExtension)) throw new ArgumentException("Extensión requerida.", nameof(fileExtension));
+        if (string.IsNullOrWhiteSpace(relativeDirectory)) throw new ArgumentException("Directory is required.", nameof(relativeDirectory));
+        if (string.IsNullOrWhiteSpace(fileExtension)) throw new ArgumentException("File extension is required.", nameof(fileExtension));
 
         var cleanExt = fileExtension.TrimStart('.').ToLowerInvariant();
         if (!DocumentConstants.AllowedMimeByExtension.ContainsKey(cleanExt))
-            throw new ArgumentException($"Extensión no permitida: {cleanExt}", nameof(fileExtension));
+            throw new ArgumentException($"File extension not allowed: {cleanExt}", nameof(fileExtension));
 
         var guid = Guid.NewGuid().ToString("N");
         var relativePath = $"{relativeDirectory.Trim('/')}/{guid}.{cleanExt}";
         var fullPath = ResolveFullPath(relativePath);
 
         var fullDir = Path.GetDirectoryName(fullPath)
-            ?? throw new InvalidOperationException("No se pudo determinar el directorio destino.");
+            ?? throw new InvalidOperationException("Could not determine target directory.");
         Directory.CreateDirectory(fullDir);
 
         await using var fs = new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true);
         await fileStream.CopyToAsync(fs, ct).ConfigureAwait(false);
 
-        _logger.LogInformation("Archivo persistido: {RelativePath} ({Bytes} bytes)", relativePath, fs.Length);
+        _logger.LogInformation("File persisted: {RelativePath} ({Bytes} bytes)", relativePath, fs.Length);
         return relativePath;
     }
 
@@ -62,7 +62,7 @@ public class LocalFileStorageService : IFileStorageService
     {
         var fullPath = ResolveFullPath(relativePath);
         if (!File.Exists(fullPath))
-            throw new FileNotFoundException($"Archivo no encontrado: {relativePath}", fullPath);
+            throw new FileNotFoundException($"File not found: {relativePath}", fullPath);
 
         Stream stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
         return Task.FromResult(stream);
@@ -74,7 +74,7 @@ public class LocalFileStorageService : IFileStorageService
         if (File.Exists(fullPath))
         {
             File.Delete(fullPath);
-            _logger.LogInformation("Archivo eliminado: {RelativePath}", relativePath);
+            _logger.LogInformation("File deleted: {RelativePath}", relativePath);
         }
         return Task.CompletedTask;
     }
@@ -92,7 +92,7 @@ public class LocalFileStorageService : IFileStorageService
         var combined = Path.GetFullPath(Path.Combine(_rootPath, relativePath));
         var rootFull = Path.GetFullPath(_rootPath) + Path.DirectorySeparatorChar;
         if (!combined.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase))
-            throw new UnauthorizedAccessException($"Path traversal detectado: {relativePath}");
+            throw new UnauthorizedAccessException($"Path traversal detected: {relativePath}");
         return combined;
     }
 }

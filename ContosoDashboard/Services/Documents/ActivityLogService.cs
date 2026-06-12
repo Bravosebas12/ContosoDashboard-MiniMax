@@ -47,7 +47,7 @@ public class ActivityLogService : IActivityLogService
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(@event))
-            throw new ArgumentException("Event requerido.", nameof(@event));
+            throw new ArgumentException("Event is required.", nameof(@event));
 
         var entry = new ActivityLogEntry(
             Event: @event,

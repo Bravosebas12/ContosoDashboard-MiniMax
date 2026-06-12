@@ -7,18 +7,18 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title" id="deleteConfirmTitle">⚠ Confirmar eliminación</h5>
+                    <h5 class="modal-title" id="deleteConfirmTitle">⚠ Confirm deletion</h5>
                         <button type="button" class="btn-close btn-close-white" @onclick="HandleCancel" aria-label="Close" disabled="@Busy"></button>
                 </div>
                 <div class="modal-body">
-                    <p>¿Eliminar permanentemente el documento <strong>"@Title"</strong>?</p>
+                    <p>Permanently delete the document <strong>"@Title"</strong>?</p>
                     <div class="alert alert-warning small mb-2">
-                        <strong>Esta acción no se puede deshacer.</strong>
+                        <strong>This action cannot be undone.</strong>
                     </div>
                     <ul class="small text-muted mb-0">
-                        <li>El archivo se borrará del disco.</li>
-                        <li>Se eliminarán todos los <strong>compartidos</strong> activos asociados (cascade).</li>
-                        <li>El <strong>registro de auditoría</strong> se preserva (sin referencia al doc).</li>
+                        <li>The file will be deleted from disk.</li>
+                        <li>All associated active <strong>shares</strong> will be removed (cascade).</li>
+                        <li>The <strong>audit log</strong> is preserved (without document reference).</li>
                     </ul>
                     @if (!string.IsNullOrEmpty(ErrorMessage))
                     {
@@ -26,9 +26,9 @@
                     }
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="HandleCancel" disabled="@Busy">Cancelar</button>
+                    <button type="button" class="btn btn-secondary" @onclick="HandleCancel" disabled="@Busy">Cancel</button>
                     <button type="button" class="btn btn-danger" @onclick="HandleConfirm" disabled="@Busy">
-                        @(Busy ? "Eliminando..." : "🗑 Eliminar permanentemente")
+                        @(Busy ? "Deleting..." : "🗑 Delete permanently")
                     </button>
                 </div>
             </div>

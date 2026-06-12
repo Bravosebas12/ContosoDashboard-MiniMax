@@ -12,23 +12,23 @@
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 
-<PageTitle>@(_task?.Title ?? "Tarea") - ContosoDashboard</PageTitle>
+<PageTitle>@(_task?.Title ?? "Task") - ContosoDashboard</PageTitle>
 
 <div class="container mt-4">
     @if (_loading)
     {
-        <p><em>Cargando tarea...</em></p>
+        <p><em>Loading task...</em></p>
     }
     else if (_task == null)
     {
-        <div class="alert alert-warning">No se encontró la tarea o no tienes acceso.</div>
-        <a href="/tasks" class="btn btn-secondary">← Volver a mis tareas</a>
+        <div class="alert alert-warning">The task was not found or you do not have access.</div>
+        <a href="/tasks" class="btn btn-secondary">← Back to my tasks</a>
     }
     else
     {
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/tasks">Mis Tareas</a></li>
+                <li class="breadcrumb-item"><a href="/tasks">My Tasks</a></li>
                 <li class="breadcrumb-item active">@_task.Title</li>
             </ol>
         </nav>
@@ -48,30 +48,30 @@
                         <table class="table table-sm">
                             <tbody>
                                 <tr>
-                                    <th style="width:30%">Estado</th>
+                                    <th style="width:30%">Status</th>
                                     <td>
                                         <span class="badge bg-@GetStatusColor(_task.Status)">@GetStatusDisplay(_task.Status)</span>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th>Asignado a</th>
+                                    <th>Assigned to</th>
                                     <td>@_task.AssignedUser.DisplayName</td>
                                 </tr>
                                 <tr>
-                                    <th>Creado por</th>
+                                    <th>Created by</th>
                                     <td>@_task.CreatedByUser.DisplayName</td>
                                 </tr>
                                 @if (_task.DueDate.HasValue)
                                 {
                                     var isOverdue = _task.DueDate.Value < DateTime.UtcNow && _task.Status != Models.TaskStatus.Completed;
                                     <tr>
-                                        <th>Fecha límite</th>
+                                        <th>Due date</th>
                                         <td>
                                             <span class="@(isOverdue ? "text-danger fw-bold" : "")">
                                                 @_task.DueDate.Value.ToString("yyyy-MM-dd HH:mm") UTC
                                                 @if (isOverdue)
                                                 {
-                                                    <span class="badge bg-danger ms-1">Vencida</span>
+                                                    <span class="badge bg-danger ms-1">Overdue</span>
                                                 }
                                             </span>
                                         </td>
@@ -80,12 +80,12 @@
                                 @if (_task.Project != null)
                                 {
                                     <tr>
-                                        <th>Proyecto</th>
+                                        <th>Project</th>
                                         <td><a href="/projects/@_task.ProjectId">@_task.Project.Name</a></td>
                                     </tr>
                                 }
                                 <tr>
-                                    <th>Creada</th>
+                                    <th>Created</th>
                                     <td>@_task.CreatedDate.ToString("yyyy-MM-dd HH:mm") UTC</td>
                                 </tr>
                             </tbody>
@@ -96,7 +96,7 @@
                 @if (_task.Comments?.Any() == true)
                 {
                     <div class="card mb-3">
-                        <div class="card-header"><h5 class="mb-0">Comentarios (@_task.Comments.Count)</h5></div>
+                        <div class="card-header"><h5 class="mb-0">Comments (@_task.Comments.Count)</h5></div>
                         <div class="card-body">
                             <ul class="list-unstyled mb-0">
                                 @foreach (var c in _task.Comments.OrderByDescending(c => c.CreatedDate))
@@ -117,10 +117,10 @@
                 <div class="card mb-3">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
-                            <i class="bi bi-paperclip"></i> Documentos adjuntos
+                            <i class="bi bi-paperclip"></i> Attached documents
                         </h5>
                         <button class="btn btn-sm btn-primary" @onclick="ToggleAttachPanel">
-                            <i class="bi bi-plus-circle"></i> Adjuntar
+                            <i class="bi bi-plus-circle"></i> Attach
                         </button>
                     </div>
                     <div class="card-body">
@@ -131,19 +131,19 @@
                                                           PreSelectedProjectId="@_task.ProjectId"
                                                           PreSelectedTaskId="Id"
                                                           ShowProjectSelector="false" />
-                                <button class="btn btn-sm btn-link" @onclick="() => _showAttachPanel = false">Cancelar</button>
+                                <button class="btn btn-sm btn-link" @onclick="() => _showAttachPanel = false">Cancel</button>
                             </div>
                         }
 
                         @if (_loadingDocs)
                         {
-                            <p class="text-muted small mb-0"><em>Cargando documentos...</em></p>
+                            <p class="text-muted small mb-0"><em>Loading documents...</em></p>
                         }
                         else if (_attachedDocs.Count == 0)
                         {
                             <p class="text-muted small mb-0">
                                 <i class="bi bi-info-circle"></i>
-                                No hay documentos adjuntos a esta tarea todavía.
+                                No documents are attached to this task yet.
                             </p>
                         }
                         else
@@ -163,7 +163,7 @@
                                                 <span>@doc.UploadedAt.ToString("yyyy-MM-dd")</span>
                                             </small>
                                         </div>
-                                        <a href="/documents/download/@doc.DocumentId" class="btn btn-sm btn-outline-secondary" title="Descargar @doc.Title" aria-label="Descargar @doc.Title">
+                                        <a href="/documents/download/@doc.DocumentId" class="btn btn-sm btn-outline-secondary" title="Download @doc.Title" aria-label="Download @doc.Title">
                                             <i class="bi bi-download" aria-hidden="true"></i>
                                         </a>
                                     </li>
@@ -173,7 +173,7 @@
                     </div>
                 </div>
 
-                <a href="/tasks" class="btn btn-outline-secondary">← Volver a mis tareas</a>
+                <a href="/tasks" class="btn btn-outline-secondary">← Back to my tasks</a>
             </div>
         </div>
 

@@ -11,16 +11,16 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Compartir "{Document.Title}"</h5>
+                    <h5 class="modal-title">Share "{Document.Title}"</h5>
                     <button type="button" class="btn-close" @onclick="Cancel" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
                         <DataAnnotationsValidator />
                         <div class="mb-3">
-                            <label class="form-label">Usuario destino <span class="text-danger">*</span></label>
+                            <label class="form-label">Target user <span class="text-danger">*</span></label>
                             <InputSelect @bind-Value="_model.TargetUserId" class="form-select" TValue="int">
-                                <option value="0">— Seleccionar —</option>
+                                <option value="0">— Select —</option>
                                 @if (_availableUsers != null)
                                 {
                                     @foreach (var u in _availableUsers)
@@ -32,28 +32,28 @@
                             <ValidationMessage For="() => _model.TargetUserId" class="text-danger small" />
                             @if (IsProjectManager)
                             {
-                                <small class="text-muted">Como PM, solo puedes compartir con miembros del proyecto @Document.ProjectId.</small>
+                                <small class="text-muted">As a PM, you can only share with members of project @Document.ProjectId.</small>
                             }
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Permiso</label>
+                            <label class="form-label">Permission</label>
                             <InputSelect @bind-Value="_model.Permission" class="form-select" TValue="DocumentSharePermission">
-                                <option value="@DocumentSharePermission.Read">Lectura</option>
+                                <option value="@DocumentSharePermission.Read">Read</option>
                             </InputSelect>
-                            <small class="text-muted">Solo lectura en esta release. Write está documentado pero no implementado.</small>
+                            <small class="text-muted">Read-only in this release. Write is documented but not implemented.</small>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Expiración (opcional)</label>
+                            <label class="form-label">Expiration (optional)</label>
                             <InputDate @bind-Value="_model.ExpiresAt" class="form-control" />
-                            <small class="text-muted">Si se establece, el share expira a las 23:59 UTC del día seleccionado.</small>
+                            <small class="text-muted">If set, the share expires at 23:59 UTC on the selected day.</small>
                         </div>
                         @if (!string.IsNullOrEmpty(_errorMessage))
                         {
                             <div class="alert alert-danger">@_errorMessage</div>
                         }
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
-                            <button type="submit" class="btn btn-primary" disabled="@_saving">@(_saving ? "Compartiendo..." : "Compartir")</button>
+                            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@_saving">@(_saving ? "Sharing..." : "Share")</button>
                         </div>
                     </EditForm>
                 </div>
@@ -90,7 +90,7 @@
     {
         if (Document == null || _model.TargetUserId == 0)
         {
-            _errorMessage = "Selecciona un usuario destino.";
+            _errorMessage = "Please select a target user.";
             return;
         }
 
@@ -109,7 +109,7 @@
 
     private class ShareModel
     {
-        [Range(1, int.MaxValue, ErrorMessage = "Selecciona un usuario.")]
+        [Range(1, int.MaxValue, ErrorMessage = "Please select a user.")]
         public int TargetUserId { get; set; }
         public DocumentSharePermission Permission { get; set; } = DocumentSharePermission.Read;
         public DateTime? ExpiresAt { get; set; }

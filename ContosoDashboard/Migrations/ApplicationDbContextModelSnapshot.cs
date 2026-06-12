@@ -108,9 +108,9 @@ namespace ContosoDashboard.Migrations
                             AnnouncementId = 1,
                             Content = "Welcome to the new ContosoDashboard application. This platform will help you manage your tasks and projects more efficiently.",
                             CreatedByUserId = 1,
-                            ExpiryDate = new DateTime(2026, 7, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8595),
+                            ExpiryDate = new DateTime(2026, 7, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2521),
                             IsActive = true,
-                            PublishDate = new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8593),
+                            PublishDate = new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2521),
                             Title = "Welcome to ContosoDashboard"
                         });
                 });
@@ -336,14 +336,14 @@ namespace ContosoDashboard.Migrations
                         new
                         {
                             ProjectId = 1,
-                            CreatedDate = new DateTime(2026, 5, 13, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8479),
+                            CreatedDate = new DateTime(2026, 5, 13, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2437),
                             Description = "Internal employee productivity dashboard",
                             Name = "ContosoDashboard Development",
                             ProjectManagerId = 2,
-                            StartDate = new DateTime(2026, 5, 13, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8469),
+                            StartDate = new DateTime(2026, 5, 13, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2430),
                             Status = 1,
-                            TargetCompletionDate = new DateTime(2026, 8, 11, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8475),
-                            UpdatedDate = new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8479)
+                            TargetCompletionDate = new DateTime(2026, 8, 11, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2434),
+                            UpdatedDate = new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2438)
                         });
                 });
 
@@ -381,7 +381,7 @@ namespace ContosoDashboard.Migrations
                         new
                         {
                             ProjectMemberId = 1,
-                            AssignedDate = new DateTime(2026, 5, 13, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8559),
+                            AssignedDate = new DateTime(2026, 5, 13, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2499),
                             ProjectId = 1,
                             Role = "TeamLead",
                             UserId = 3
@@ -389,7 +389,7 @@ namespace ContosoDashboard.Migrations
                         new
                         {
                             ProjectMemberId = 2,
-                            AssignedDate = new DateTime(2026, 5, 13, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8561),
+                            AssignedDate = new DateTime(2026, 5, 13, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2501),
                             ProjectId = 1,
                             Role = "Developer",
                             UserId = 4
@@ -488,42 +488,42 @@ namespace ContosoDashboard.Migrations
                             TaskId = 1,
                             AssignedUserId = 4,
                             CreatedByUserId = 2,
-                            CreatedDate = new DateTime(2026, 5, 13, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8515),
+                            CreatedDate = new DateTime(2026, 5, 13, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2465),
                             Description = "Create entity relationship diagram and database design",
-                            DueDate = new DateTime(2026, 5, 23, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8513),
+                            DueDate = new DateTime(2026, 5, 23, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2463),
                             Priority = 2,
                             ProjectId = 1,
                             Status = 2,
                             Title = "Design database schema",
-                            UpdatedDate = new DateTime(2026, 5, 23, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8516)
+                            UpdatedDate = new DateTime(2026, 5, 23, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2465)
                         },
                         new
                         {
                             TaskId = 2,
                             AssignedUserId = 4,
                             CreatedByUserId = 2,
-                            CreatedDate = new DateTime(2026, 5, 18, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8520),
+                            CreatedDate = new DateTime(2026, 5, 18, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2468),
                             Description = "Set up Microsoft Entra ID authentication",
-                            DueDate = new DateTime(2026, 6, 17, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8518),
+                            DueDate = new DateTime(2026, 6, 17, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2467),
                             Priority = 3,
                             ProjectId = 1,
                             Status = 1,
                             Title = "Implement authentication",
-                            UpdatedDate = new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8520)
+                            UpdatedDate = new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2469)
                         },
                         new
                         {
                             TaskId = 3,
                             AssignedUserId = 4,
                             CreatedByUserId = 2,
-                            CreatedDate = new DateTime(2026, 5, 23, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8523),
+                            CreatedDate = new DateTime(2026, 5, 23, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2472),
                             Description = "Design user interface mockups for all main pages",
-                            DueDate = new DateTime(2026, 6, 22, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8522),
+                            DueDate = new DateTime(2026, 6, 22, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2471),
                             Priority = 1,
                             ProjectId = 1,
                             Status = 0,
                             Title = "Create UI mockups",
-                            UpdatedDate = new DateTime(2026, 5, 23, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(8524)
+                            UpdatedDate = new DateTime(2026, 5, 23, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2472)
                         });
                 });
 
@@ -591,7 +591,7 @@ namespace ContosoDashboard.Migrations
                         {
                             UserId = 1,
                             AvailabilityStatus = 0,
-                            CreatedDate = new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(7962),
+                            CreatedDate = new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2102),
                             Department = "IT",
                             DisplayName = "System Administrator",
                             Email = "admin@contoso.com",
@@ -604,7 +604,7 @@ namespace ContosoDashboard.Migrations
                         {
                             UserId = 2,
                             AvailabilityStatus = 0,
-                            CreatedDate = new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(7965),
+                            CreatedDate = new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2105),
                             Department = "Engineering",
                             DisplayName = "Camille Nicole",
                             Email = "camille.nicole@contoso.com",
@@ -617,7 +617,7 @@ namespace ContosoDashboard.Migrations
                         {
                             UserId = 3,
                             AvailabilityStatus = 0,
-                            CreatedDate = new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(7967),
+                            CreatedDate = new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2107),
                             Department = "Engineering",
                             DisplayName = "Floris Kregel",
                             Email = "floris.kregel@contoso.com",
@@ -630,7 +630,7 @@ namespace ContosoDashboard.Migrations
                         {
                             UserId = 4,
                             AvailabilityStatus = 0,
-                            CreatedDate = new DateTime(2026, 6, 12, 18, 0, 17, 767, DateTimeKind.Utc).AddTicks(7970),
+                            CreatedDate = new DateTime(2026, 6, 12, 23, 17, 6, 869, DateTimeKind.Utc).AddTicks(2110),
                             Department = "Engineering",
                             DisplayName = "Ni Kang",
                             Email = "ni.kang@contoso.com",

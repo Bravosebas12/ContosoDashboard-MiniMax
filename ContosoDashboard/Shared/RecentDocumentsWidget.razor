@@ -7,14 +7,14 @@
 <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
-            <i class="bi bi-file-earmark-clock"></i> Documentos recientes
+            <i class="bi bi-file-earmark-clock"></i> Recent documents
         </h5>
-        <a href="/documents" class="btn btn-sm btn-outline-primary">Ver todos</a>
+        <a href="/documents" class="btn btn-sm btn-outline-primary">View all</a>
     </div>
     <div class="card-body">
         @if (_loading)
         {
-            <p class="text-muted small mb-0"><em>Cargando documentos recientes...</em></p>
+            <p class="text-muted small mb-0"><em>Loading recent documents...</em></p>
         }
         else if (_errorMessage != null)
         {
@@ -24,7 +24,7 @@
         {
             <p class="text-muted small mb-0">
                 <i class="bi bi-info-circle"></i>
-                No has subido documentos todavía.
+                You haven't uploaded any documents yet.
             </p>
         }
         else
@@ -44,7 +44,7 @@
                                 <span title="@doc.UploadedAt.ToString("yyyy-MM-dd HH:mm") UTC">@FormatRelativeTime(doc.UploadedAt)</span>
                             </small>
                         </div>
-                        <a href="/documents/download/@doc.DocumentId" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="Descargar @doc.Title" aria-label="Descargar @doc.Title">
+                        <a href="/documents/download/@doc.DocumentId" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="Download @doc.Title" aria-label="Download @doc.Title">
                             <i class="bi bi-download" aria-hidden="true"></i>
                         </a>
                     </li>
@@ -84,7 +84,7 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Error al cargar documentos recientes: {ex.Message}";
+            _errorMessage = $"Error loading recent documents: {ex.Message}";
             _recentDocs = new List<RecentDocumentDto>();
         }
         finally
