@@ -220,7 +220,7 @@ Como usuario, quiero ver y adjuntar documentos desde una tarea, y ver un widget 
 
 - **FR-036**: System MUST abstraer el almacenamiento mediante la interfaz `IFileStorageService` con métodos `UploadAsync`, `DownloadAsync`, `DeleteAsync`, `GetUrlAsync`.
 - **FR-037**: System MUST implementar `LocalFileStorageService` (training) usando `System.IO.File`, con paths relativos portables.
-- **FR-038**: System MUST implementar `IFileStorageService` con `LocalFileStorageService` como única implementación concreta en esta release. `AzureBlobStorageService` queda documentado como **referencia arquitectónica** para migración futura (no se implementa, no se agrega SDK, no se mockea). Decisión documentada en `## Clarifications` (sesión 2026-06-12) — alineada con constitución v1.1.0 §Restricciones Adicionales (training-only, offline, sin cloud dependencies).
+- **FR-038**: System MUST implementar `IFileStorageService` con `LocalFileStorageService` como **única** implementación concreta en esta release. Esta fase **no involucra almacenamiento en la nube** — no se agregan SDKs cloud, no se mockean servicios externos, no se incluyen implementaciones alternativas. La interfaz `IFileStorageService` queda preparada para una futura migración a otro backend, pero esa decisión queda explícitamente fuera de scope. Decisión documentada en `## Clarifications` (sesión 2026-06-12) — alineada con constitución v1.1.0 §Restricciones Adicionales (training-only, offline, sin cloud dependencies).
 
 ### Key Entities
 
@@ -295,7 +295,7 @@ Como usuario, quiero ver y adjuntar documentos desde una tarea, y ver un widget 
 - Templates de documentos.
 - Cuotas de almacenamiento.
 - Soft delete con recuperación.
-- Cloud storage real (Azure Blob) — la arquitectura está diseñada para soportarlo, pero la implementación queda para release futura.
+- Cualquier backend de almacenamiento distinto a `LocalFileStorageService` (cloud o de red) — esta release es estrictamente local. La interfaz `IFileStorageService` queda lista para una futura migración, pero ningún provider concreto es compromiso de esta spec.
 
 ---
 
@@ -313,5 +313,5 @@ Como usuario, quiero ver y adjuntar documentos desde una tarea, y ver un widget 
 ### Session 2026-06-12
 
 - **Q (FR-035)**: ¿Cuál es el comportamiento esperado cuando un Project Manager quiere compartir un documento de su proyecto con usuarios fuera del proyecto? → **A: B — Restringir a su proyecto** (un PM solo comparte dentro de su proyecto: team members y otros PMs del mismo proyecto; solo el dueño puede compartir con cualquier usuario de la organización). Impacto: modela `DocumentShare` con un check de membresía en el servicio; consistente con constitución v1.1.0 §II.A01 (mínimo privilegio / defense in depth).
-- **Q (FR-038)**: ¿Cuál es el alcance de la integración con Azure Blob Storage en esta release? → **A: A — Solo referencia arquitectónica** (`IFileStorageService` + `LocalFileStorageService`; sin SDK de Azure ni mocks). Impacto: reduce el scope a lo esencial para training, evita dependencias cloud no alineadas con constitución §Restricciones Adicionales, libera capacidad para enfocarse en calidad y testing per constitución V.
+- **Q (FR-038)**: ¿Cuál es el alcance del backend de almacenamiento en esta release? → **A: A — 100% local** (`IFileStorageService` + `LocalFileStorageService`; sin SDKs externos, sin mocks, sin implementaciones alternativas). El usuario reforzó explícitamente: "en esta fase solo que se guarde localmente, no invoLucre almacenamiento externo". Impacto: reduce el scope a lo esencial para training, evita dependencias externas no alineadas con constitución §Restricciones Adicionales, libera capacidad para enfocarse en calidad y testing per constitución V. El spec queda **limpio de cualquier mención a providers de almacenamiento externos** (no se nombra ningún producto cloud concreto).
 - **Q (Edge Case: replace + descarga concurrente)**: ¿Qué comportamiento debe tener el sistema cuando un usuario reemplaza un archivo mientras otro lo está descargando? → **A: B — Last-writer-wins con GUID nuevo** (la descarga en curso completa con el archivo antiguo; el filename GUID cambia tras replace, así que la próxima GET ve el archivo nuevo). Sin locks de filesystem. Impacto: simplifica implementación, evita deadlocks, consistente con CDNs; requiere test de integración con 2 clientes concurrentes para verificar comportamiento.
