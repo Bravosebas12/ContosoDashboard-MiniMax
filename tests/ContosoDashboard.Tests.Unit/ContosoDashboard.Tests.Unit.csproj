@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- T001+T002: Tests funcionales y técnicos del dominio (Nivel 1+2 de la pirámide).
+       Ver specs/001-documents-management/tasks.md T001, T002, T031, T032, T033, T034. -->
+
+  <PropertyGroup>
+    <RootNamespace>ContosoDashboard.Tests.Unit</RootNamespace>
+    <AssemblyName>ContosoDashboard.Tests.Unit</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" Version="2.9.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NSubstitute" Version="5.1.0" />
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="coverlet.msbuild" Version="6.0.2" PrivateAssets="all" />
+    <!-- Stryker.NET se ejecuta como dotnet tool, no como PackageReference -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ContosoDashboard\ContosoDashboard.csproj" />
+  </ItemGroup>
+
+</Project>

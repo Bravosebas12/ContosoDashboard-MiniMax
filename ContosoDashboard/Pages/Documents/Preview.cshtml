@@ -1,0 +1,45 @@
+@* Endpoint de previsualización inline. Ver FR-019. Sirve el archivo con Content-Disposition: inline. *@
+@page "/documents/preview/{Id:int}"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Mvc
+@using ContosoDashboard.Models
+@using ContosoDashboard.Services.Documents
+@inject IDocumentService DocumentService
+@inject AuthenticationStateProvider AuthState
+@attribute [Authorize(Policy = "Employee")]
+
+@functions {
+    [Parameter] public int Id { get; set; }
+
+    public async Task<IActionResult> OnGetAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        var nameId = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(nameId, out var userId)) return new UnauthorizedResult();
+
+        try
+        {
+            var (stream, fileName, contentType) = await DocumentService.OpenForDownloadAsync(Id, userId);
+            // T130: Headers de seguridad para preview (defense in depth).
+            // X-Content-Type-Options: nosniff evita MIME sniffing.
+            // Content-Security-Policy: sandbox aísla el contenido (sin scripts, sin popups, mismo origen).
+            // X-Frame-Options: DENY evita embedding en iframes externos.
+            Response.Headers["X-Content-Type-Options"] = "nosniff";
+            Response.Headers["Content-Security-Policy"] = "sandbox allow-same-origin";
+            Response.Headers["X-Frame-Options"] = "DENY";
+            // Inline + filename original (no forzar descarga)
+            var cd = new System.Net.Mime.ContentDisposition
+            {
+                FileName = fileName,
+                DispositionType = "inline"
+            };
+            Response.Headers["Content-Disposition"] = cd.ToString();
+            return new FileStreamResult(stream, contentType);
+        }
+        catch (DocumentNotFoundException) { return new NotFoundResult(); }
+        catch (DocumentUnauthorizedAccessException) { return new ForbidResult(); }
+    }
+}

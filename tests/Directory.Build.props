@@ -1,0 +1,30 @@
+<Project>
+
+  <!-- T016: Configuración común a todos los proyectos de tests.
+       Ver specs/001-documents-management/tasks.md T016.
+       Los warnings se permiten en tests (no en producción) y se habilita Nullable. -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Permitir warnings en tests (no son bloqueantes per Constitución IV) -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Roslyn analyzers (alineados con el código de producción, T015) -->
+  <PropertyGroup>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Análisis de .NET mínimo recomendado (no el "Recommended" para no inflar warnings) -->
+    <AnalysisLevel>latest-minimum</AnalysisLevel>
+    <AnalysisMode>Default</AnalysisMode>
+  </PropertyGroup>
+
+  <!-- T013: Defaults de ExcludeFromCodeCoverage via atributo (no automático).
+       Solo se excluye: migrations, code-generated, y archivos con [ExcludeFromCodeCoverage].
+       Esto cumple Constitución IV: PROHIBIDO el uso indiscriminado de [ExcludeFromCodeCoverage]. -->
+
+</Project>

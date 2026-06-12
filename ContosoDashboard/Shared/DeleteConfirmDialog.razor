@@ -1,0 +1,60 @@
+@* Modal de confirmación para eliminación permanente de un documento. Ver FR-021, FR-022. *@
+@using ContosoDashboard.Services.Documents
+
+@if (Show)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteConfirmTitle">⚠ Confirmar eliminación</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="HandleCancel" aria-label="Close" disabled="@Busy"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Eliminar permanentemente el documento <strong>"@Title"</strong>?</p>
+                    <div class="alert alert-warning small mb-2">
+                        <strong>Esta acción no se puede deshacer.</strong>
+                    </div>
+                    <ul class="small text-muted mb-0">
+                        <li>El archivo se borrará del disco.</li>
+                        <li>Se eliminarán todos los <strong>compartidos</strong> activos asociados (cascade).</li>
+                        <li>El <strong>registro de auditoría</strong> se preserva (sin referencia al doc).</li>
+                    </ul>
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger mt-2 mb-0">@ErrorMessage</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="HandleCancel" disabled="@Busy">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="HandleConfirm" disabled="@Busy">
+                        @(Busy ? "Eliminando..." : "🗑 Eliminar permanentemente")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Si el modal está visible.</summary>
+    [Parameter] public bool Show { get; set; }
+
+    /// <summary>Título del documento que se va a eliminar (para mostrar en el mensaje).</summary>
+    [Parameter] public string Title { get; set; } = string.Empty;
+
+    /// <summary>Si la operación de eliminación está en curso (deshabilita botones).</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>Mensaje de error a mostrar dentro del modal.</summary>
+    [Parameter] public string? ErrorMessage { get; set; }
+
+    /// <summary>Se invoca cuando el usuario confirma la eliminación.</summary>
+    [Parameter] public EventCallback OnConfirm { get; set; }
+
+    /// <summary>Se invoca cuando el usuario cancela.</summary>
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private Task HandleConfirm() => OnConfirm.InvokeAsync();
+    private Task HandleCancel() => OnCancel.InvokeAsync();
+}

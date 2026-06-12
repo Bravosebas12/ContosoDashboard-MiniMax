@@ -1,0 +1,129 @@
+@* Modal para editar metadata de un documento. Ver FR-020. *@
+@using System.ComponentModel.DataAnnotations
+@using ContosoDashboard.Models
+@using ContosoDashboard.Services.Documents
+@using Microsoft.AspNetCore.Components.Forms
+
+@if (Show && Document != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar metadata</h5>
+                    <button type="button" class="btn-close" @onclick="Cancel" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label class="form-label">Título <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="_model.Title" class="form-control" maxlength="200" required />
+                            <ValidationMessage For="() => _model.Title" class="text-danger small" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Descripción</label>
+                            <InputTextArea @bind-Value="_model.Description" class="form-control" maxlength="2000" rows="3" />
+                            <ValidationMessage For="() => _model.Description" class="text-danger small" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Categoría <span class="text-danger">*</span></label>
+                            <InputSelect @bind-Value="_model.Category" class="form-select" required>
+                                @foreach (var cat in DocumentConstants.AllowedCategories)
+                                {
+                                    <option value="@cat">@cat</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tags (separados por coma, máx. 5, lowercase)</label>
+                            <InputText @bind-Value="_model.TagsRaw" class="form-control" placeholder="ej: q4, presupuesto, cliente-a" />
+                            <small class="text-muted">@_model.TagsRaw.Length / @DocumentConstants.MaxTags × @DocumentConstants.MaxTagLength chars</small>
+                        </div>
+                        @if (!string.IsNullOrEmpty(_errorMessage))
+                        {
+                            <div class="alert alert-danger">@_errorMessage</div>
+                        }
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" disabled="@_saving">@(_saving ? "Guardando..." : "Guardar")</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public DocumentDto? Document { get; set; }
+    [Parameter] public EventCallback<DocumentDto> OnSaved { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private EditModel _model = new();
+    private bool _saving;
+    private string? _errorMessage;
+
+    protected override void OnParametersSet()
+    {
+        if (Show && Document != null)
+        {
+            _model = new EditModel
+            {
+                Title = Document.Title,
+                Description = Document.Description ?? string.Empty,
+                Category = Document.Category,
+                TagsRaw = Document.Tags ?? string.Empty,
+            };
+            _errorMessage = null;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (Document == null) return;
+        _saving = true;
+        _errorMessage = null;
+        try
+        {
+            // Use the DocumentService.UpdateMetadataAsync via callback to parent
+            // (The component is dumb — parent owns the call to keep DTO mapping consistent)
+            var updatedDoc = Document with
+            {
+                Title = _model.Title.Trim(),
+                Description = string.IsNullOrWhiteSpace(_model.Description) ? null : _model.Description.Trim(),
+                Category = _model.Category,
+                Tags = NormalizeTags(_model.TagsRaw),
+            };
+            await OnSaved.InvokeAsync(updatedDoc);
+        }
+        catch (Exception ex) { _errorMessage = ex.Message; }
+        finally { _saving = false; }
+    }
+
+    private async Task Cancel() => await OnCancel.InvokeAsync();
+
+    private static string? NormalizeTags(string? tags)
+    {
+        if (string.IsNullOrWhiteSpace(tags)) return null;
+        var normalized = string.Join(",", tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(t => t.ToLowerInvariant()));
+        return string.IsNullOrEmpty(normalized) ? null : normalized;
+    }
+
+    private class EditModel
+    {
+        [Required(ErrorMessage = "El título es obligatorio.")]
+        [MaxLength(200, ErrorMessage = "Máx. 200 caracteres.")]
+        public string Title { get; set; } = string.Empty;
+
+        [MaxLength(2000, ErrorMessage = "Máx. 2000 caracteres.")]
+        public string? Description { get; set; }
+
+        [Required(ErrorMessage = "Selecciona una categoría.")]
+        public string Category { get; set; } = string.Empty;
+
+        public string? TagsRaw { get; set; }
+    }
+}

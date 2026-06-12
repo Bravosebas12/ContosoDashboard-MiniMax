@@ -23,6 +23,15 @@
         try
         {
             var (stream, fileName, contentType) = await DocumentService.OpenForDownloadAsync(Id, userId);
+
+            // T130: Headers de seguridad explícitos (defense in depth, además del middleware global).
+            // X-Content-Type-Options: nosniff evita que el navegador "adivine" el MIME type
+            // Content-Disposition: attachment fuerza la descarga (vs inline) y sanitiza el filename.
+            Response.Headers["X-Content-Type-Options"] = "nosniff";
+            Response.Headers["Content-Disposition"] =
+                $"attachment; filename=\"{System.Net.WebUtility.HtmlEncode(fileName)}\"; " +
+                $"filename*=UTF-8''{System.Uri.EscapeDataString(fileName)}";
+
             return new FileStreamResult(stream, contentType) { FileDownloadName = fileName };
         }
         catch (ContosoDashboard.Services.Documents.DocumentNotFoundException) { return new NotFoundResult(); }

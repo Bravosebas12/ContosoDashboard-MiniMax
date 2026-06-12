@@ -1,0 +1,117 @@
+@* Modal para compartir un documento con usuarios. Ver FR-023, FR-024, FR-035. *@
+@using System.ComponentModel.DataAnnotations
+@using ContosoDashboard.Models
+@using ContosoDashboard.Services
+@using ContosoDashboard.Services.Documents
+@using Microsoft.AspNetCore.Components.Forms
+
+@if (Show && Document != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Compartir "{Document.Title}"</h5>
+                    <button type="button" class="btn-close" @onclick="Cancel" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label class="form-label">Usuario destino <span class="text-danger">*</span></label>
+                            <InputSelect @bind-Value="_model.TargetUserId" class="form-select" TValue="int">
+                                <option value="0">— Seleccionar —</option>
+                                @if (_availableUsers != null)
+                                {
+                                    @foreach (var u in _availableUsers)
+                                    {
+                                        <option value="@u.UserId">@u.DisplayName (@u.Email)</option>
+                                    }
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="() => _model.TargetUserId" class="text-danger small" />
+                            @if (IsProjectManager)
+                            {
+                                <small class="text-muted">Como PM, solo puedes compartir con miembros del proyecto @Document.ProjectId.</small>
+                            }
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Permiso</label>
+                            <InputSelect @bind-Value="_model.Permission" class="form-select" TValue="DocumentSharePermission">
+                                <option value="@DocumentSharePermission.Read">Lectura</option>
+                            </InputSelect>
+                            <small class="text-muted">Solo lectura en esta release. Write está documentado pero no implementado.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Expiración (opcional)</label>
+                            <InputDate @bind-Value="_model.ExpiresAt" class="form-control" />
+                            <small class="text-muted">Si se establece, el share expira a las 23:59 UTC del día seleccionado.</small>
+                        </div>
+                        @if (!string.IsNullOrEmpty(_errorMessage))
+                        {
+                            <div class="alert alert-danger">@_errorMessage</div>
+                        }
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" disabled="@_saving">@(_saving ? "Compartiendo..." : "Compartir")</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public DocumentDto? Document { get; set; }
+    [Parameter] public int CurrentUserId { get; set; }
+    [Parameter] public bool IsProjectManager { get; set; }
+    [Parameter] public List<User>? AvailableUsers { get; set; }
+    [Parameter] public EventCallback<ShareRequest> OnShared { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private ShareModel _model = new();
+    private bool _saving;
+    private string? _errorMessage;
+    private List<User>? _availableUsers;
+
+    protected override void OnParametersSet()
+    {
+        if (Show && Document != null)
+        {
+            _model = new ShareModel { TargetUserId = 0, Permission = DocumentSharePermission.Read, ExpiresAt = null };
+            _errorMessage = null;
+            _availableUsers = AvailableUsers;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (Document == null || _model.TargetUserId == 0)
+        {
+            _errorMessage = "Selecciona un usuario destino.";
+            return;
+        }
+
+        _saving = true;
+        _errorMessage = null;
+        try
+        {
+            await OnShared.InvokeAsync(new ShareRequest(
+                Document.DocumentId, _model.TargetUserId, _model.Permission, _model.ExpiresAt));
+        }
+        catch (Exception ex) { _errorMessage = ex.Message; }
+        finally { _saving = false; }
+    }
+
+    private async Task Cancel() => await OnCancel.InvokeAsync();
+
+    private class ShareModel
+    {
+        [Range(1, int.MaxValue, ErrorMessage = "Selecciona un usuario.")]
+        public int TargetUserId { get; set; }
+        public DocumentSharePermission Permission { get; set; } = DocumentSharePermission.Read;
+        public DateTime? ExpiresAt { get; set; }
+    }
+}

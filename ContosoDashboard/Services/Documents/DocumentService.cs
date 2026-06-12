@@ -443,19 +443,65 @@ public class DocumentService : IDocumentService
         var doc = await _db.Documents.FirstOrDefaultAsync(d => d.DocumentId == documentId, ct)
             ?? throw new DocumentNotFoundException(documentId);
 
-        // Authorization: owner OR PM of project
+        // Authorization: owner OR PM of project (per FR-021)
         var isOwner = doc.UploadedByUserId == currentUserId;
         var isPm = doc.ProjectId.HasValue && await _db.Projects.AnyAsync(p => p.ProjectId == doc.ProjectId && p.ProjectManagerId == currentUserId, ct);
         if (!isOwner && !isPm)
             throw new DocumentUnauthorizedAccessException(documentId, currentUserId.ToString());
 
         var path = doc.FilePath;
-        _db.Documents.Remove(doc);
-        await _db.SaveChangesAsync(ct);
 
-        await SafeDeleteFileAsync(path, ct);
-        await _activityLog.LogAsync(ActivityLogEvents.DocumentDeleted, documentId, currentUserId, ipAddress,
-            new { filePath = path, deletedBy = isOwner ? "owner" : "pm" }, ct);
+        // T113: Preservar auditoría antes del delete.
+        // La FK ActivityLog.DocumentId está configurada con RESTRICT en OnModelCreating
+        // (preserve audit log even if doc is deleted). Por lo tanto, debemos nulificar
+        // la FK antes de eliminar el Document, o el FK constraint rechazará la operación.
+        var activityLogsPreserved = await _db.ActivityLogs
+            .Where(l => l.DocumentId == documentId)
+            .ExecuteUpdateAsync(s => s.SetProperty(l => l.DocumentId, (int?)null), ct);
+
+        // T110+T111: Transacción explícita para garantizar atomicidad de las operaciones DB.
+        // Si algo falla después de nulificar los ActivityLogs, hacemos rollback completo.
+        // DocumentShare se elimina automáticamente vía CASCADE configurado en OnModelCreating.
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            _db.Documents.Remove(doc);
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            // Re-nulificar los ActivityLogs que dejamos en estado transitorio no es necesario:
+            // ExecuteUpdateAsync ya persistió los cambios antes de la transacción.
+            // Pero como la transacción hizo rollback del _db.ChangeTracker, los ActivityLogs en memoria
+            // vuelven a tener DocumentId = documentId. Sin embargo, ExecuteUpdateAsync escribió
+            // directamente en DB con un UPDATE, fuera del change tracker. Para garantizar consistencia,
+            // hacemos un nuevo update de idempotencia.
+            await _db.ActivityLogs
+                .Where(l => l.DocumentId == documentId)
+                .ExecuteUpdateAsync(s => s.SetProperty(l => l.DocumentId, (int?)null), ct);
+            throw;
+        }
+
+        // T110 (continuación): Best-effort delete del archivo en disco.
+        // Si falla, logueamos warning — la row ya no existe en DB y no podemos hacer rollback
+        // del archivo. Esto se considera "archivo huérfano" que se podría limpiar con un
+        // job de mantenimiento futuro (fuera de scope de esta release).
+        try
+        {
+            await _storage.DeleteAsync(path, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Documento {DocumentId} eliminado de DB pero archivo huérfano en disco: {Path}",
+                documentId, path);
+        }
+
+        // Log auditoría (sin FK al doc eliminado, pero el evento queda registrado)
+        await _activityLog.LogAsync(ActivityLogEvents.DocumentDeleted, null, currentUserId, ipAddress,
+            new { documentId, filePath = path, deletedBy = isOwner ? "owner" : "pm", activityLogsPreserved }, ct);
     }
 
     // ====================== Mapping ======================

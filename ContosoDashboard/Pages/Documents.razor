@@ -49,7 +49,7 @@
                                 <td><small>@d.FileType</small></td>
                                 <td>@d.UploadedAt.ToString("yyyy-MM-dd HH:mm")</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => Download(d.DocumentId)">Descargar</button>
+                                    <a href="/documents/details/@d.DocumentId" class="btn btn-sm btn-outline-primary" aria-label="Ver detalles de @d.Title">Ver detalles</a>
                                 </td>
                             </tr>
                         }

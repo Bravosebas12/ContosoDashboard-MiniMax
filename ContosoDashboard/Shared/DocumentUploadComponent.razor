@@ -89,10 +89,17 @@
 @code {
     [Parameter, EditorRequired] public EventCallback<DocumentDto> OnUploaded { get; set; }
     [Parameter] public int? PreSelectedProjectId { get; set; }
+
+    /// <summary>
+    /// Si se especifica, el documento se adjunta a esta tarea (T118: snapshot del ProjectId del task).
+    /// Cuando se establece, se oculta el selector de proyecto y se vincula el doc a la tarea.
+    /// </summary>
+    [Parameter] public int? PreSelectedTaskId { get; set; }
     [Parameter] public bool ShowProjectSelector { get; set; } = true;
 
     [Inject] private IDocumentService DocumentService { get; set; } = default!;
     [Inject] private IProjectService ProjectService { get; set; } = default!;
+    [Inject] private IDashboardService DashboardService { get; set; } = default!;
     [Inject] private AuthenticationStateProvider AuthState { get; set; } = default!;
 
     private IBrowserFile? _selectedFile;
@@ -104,6 +111,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Si hay PreSelectedTaskId, el selector de proyecto se debe ocultar
+        // y se snapshotea el ProjectId del task (T118).
+        if (PreSelectedTaskId.HasValue) ShowProjectSelector = false;
         if (ShowProjectSelector)
         {
             try { _availableProjects = await ProjectService.GetUserProjectsAsync(0) ?? new(); }
@@ -152,7 +162,10 @@
             var result = await DocumentService.UploadAsync(
                 memoryStream, fileName, contentType,
                 _model.Title, _model.Description, _model.Category, tags,
-                _model.ProjectId, null, userId, null, default);
+                _model.ProjectId, PreSelectedTaskId, userId, null, default);
+
+            // T124: invalidar cache del dashboard para que el widget "Documentos recientes" se actualice.
+            DashboardService.InvalidateUserDashboardAsync(userId);
 
             _progress = 100;
             await OnUploaded.InvokeAsync(new DocumentDto(

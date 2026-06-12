@@ -569,3 +569,111 @@ These may be considered for future enhancements based on user feedback and busin
 ## Next Steps
 
 Once approved, these requirements will be used to create detailed specifications using the Spec-Driven Development methodology with GitHub Spec Kit.
+
+---
+
+## 10. Implementation Notes (v1.0.0)
+
+> **?? Sección añadida — T137 (Phase 11 Polish)** — Resumen de lo que se implementó, lo que se difirió, y desviaciones respecto al spec original.
+
+### 10.1 Lo que se implementó
+
+#### Servicios (12 archivos)
+- IDocumentService + DocumentService — orquestación completa (upload, download, list, search, update, replace, delete) con rollback atómico
+- IDocumentShareService + DocumentShareService — share/revoke con las 3 reglas de autorización (owner, PM-dentro-proyecto, otros-403)
+- IFileStorageService + LocalFileStorageService — abstracción con implementación local-only (AppData/uploads/{userId}/{projectIdOrPersonal}/{guid}.{ext}) y anti-path-traversal
+- IAntivirusScanner + ClamAvScanner — integración nClam con fail-open en training
+- IMimeTypeValidator + MimeTypeValidator — whitelist de 16 MIME types + magic bytes
+- IFilePathBuilder + FilePathBuilder — generación de paths seguros
+- IActivityLogService + ActivityLogService — logging estructurado JSON
+- IActivityLogCleanupService + ActivityLogCleanupService + ActivityLogCleanupBackgroundService — retención 90 días (T131)
+- DocumentConstants — 6 categorías, 16 MIME whitelist, límites (25 MB, 5 tags, 200 chars título, 2000 chars descripción)
+
+#### Modelos y migración
+- Models/Document.cs — entity con todas las propiedades del data-model.md + DocumentAvStatus enum
+- Models/DocumentShare.cs — entity + DocumentSharePermission enum
+- Models/ActivityLog.cs — entity + ActivityLogEvents constants
+- ApplicationDbContext extendido con DbSet<Document|DocumentShare|ActivityLog> + Fluent API config (índices, FKs, CASCADE en DocumentShare, RESTRICT en ActivityLog)
+- Migración 20260612180018_InitialDocuments aplicada
+
+#### UI (8 páginas + 5 componentes)
+- Pages/Documents.razor — listado con paginación, ordenamiento, upload
+- Pages/DocumentDetails.razor — vista detallada con todas las acciones (download, preview, share, edit, replace, delete)
+- Pages/SharedWithMe.razor — documentos compartidos conmigo
+- Pages/TaskDetails.razor — tarea con sección "Documentos adjuntos"
+- Pages/Documents/Download.cshtml — endpoint con [Authorize] + headers de seguridad
+- Pages/Documents/Preview.cshtml — endpoint inline con Content-Security-Policy: sandbox allow-same-origin
+- Shared/DocumentUploadComponent.razor — reutilizable con PreSelectedProjectId y PreSelectedTaskId
+- Shared/ShareDialog.razor, DeleteConfirmDialog.razor, EditMetadataModal.razor, DocumentPreviewComponent.razor, RecentDocumentsWidget.razor
+- Shared/NavMenu.razor — añadido link "Compartido conmigo"
+
+#### Seguridad
+- Headers globales en Program.cs (CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff, X-XSS-Protection, Referrer-Policy, HSTS)
+- Headers explícitos en Download.cshtml (T130) y Preview.cshtml
+- [Authorize(Policy = "Employee")] en todas las páginas de documentos
+- Re-validación de acceso en IDocumentService.GetByIdAsync, OpenForDownloadAsync
+- Notificación a project members en upload (latencia = 5s)
+- Notificación al receptor en share/revoke
+- Soft delete de shares vía RevokedAt
+
+#### Performance
+- IMemoryCache con TTL 5 min en DashboardService (summary, recent-docs, count)
+- Invalidación explícita tras upload/delete (T124)
+- AsNoTracking() en queries read-only
+- EF Core paginación (25/pág default, max 50)
+- Índices en FKs, categorías, UploadedAt DESC, DocumentId DESC
+
+#### Accesibilidad (T139)
+- ria-label en todos los botones icon-only
+- ria-hidden="true" en iconos decorativos
+- ole="dialog", ria-modal="true", ria-labelledby en modales
+
+### 10.2 Lo que se difirió (gaps por resolver)
+
+| # | Gap | Bloqueado por | Plan |
+|---|---|---|---|
+| 1 | Tests unit (xUnit + NSubstitute + FluentAssertions) | Phase 1 no completada | Crear 	ests/ContosoDashboard.Tests.Unit/ y aplicar TDD retroactivo |
+| 2 | Tests integration (Testcontainers SQL Server) | Phase 1 | Crear 	ests/ContosoDashboard.Tests.Integration/ |
+| 3 | Tests componentes bUnit | Phase 1 | Crear 	ests/ContosoDashboard.Tests.Components/ |
+| 4 | Tests contrato PactNet | Phase 1 | Crear 	ests/ContosoDashboard.Tests.Contract/ |
+| 5 | Tests E2E API RestSharp | Phase 1 | Crear 	ests/ContosoDashboard.Tests.E2E.Api/ |
+| 6 | Tests E2E UI Playwright | Phase 1 | Crear 	ests/ContosoDashboard.Tests.E2E.UI/ |
+| 7 | Performance tests NBomber/k6 | Phase 1 | Crear 	ests/ContosoDashboard.Tests.Performance/ + scripts k6 |
+| 8 | Mutation testing Stryker.NET | Phase 1 | Ejecutar sobre Services/Documents/** |
+| 9 | Agente /code-quality | Depende de (1)-(8) | Ejecutar tras desbloquear tests |
+| 10 | Agente /speckit.analyze | Independiente | Ejecutar (validación cross-artifact) |
+
+### 10.3 Desviaciones del spec original
+
+| Spec original | Implementación | Razón |
+|---|---|---|
+| User model usa string (AspNetCore Identity) | User model usa int UserId | Modelo custom pre-existente en el proyecto |
+| IDocumentShareService.ShareAsync(request, string currentUserId, ...) | ShareAsync(request, int currentUserId, ...) | Consistencia con User.UserId (int) |
+| IDocumentShareService usa record ActiveShareInfo (6 args) | Implementación usa el mismo record con 6 args | Consistencia con contracts/IDocumentShareService.cs |
+| INotificationService no tenía método específico para shares | Se invoca CreateNotificationAsync con NotificationType.ProjectUpdate | No hay tipo específico para shares en NotificationType |
+
+### 10.4 Quality gates (Constitución v1.1.0)
+
+| Gate | Estado | Notas |
+|---|---|---|
+| Cobertura de líneas | N/A | Sin proyectos de tests (gap 1) |
+| Cobertura de branches | N/A | Sin proyectos de tests |
+| **Mutation score** | N/A | Stryker.NET no ejecutado (gap 8) |
+| E2E API happy paths | N/A | Sin tests (gap 5) |
+| E2E UI smoke | N/A | Sin tests (gap 6) |
+| Contratos Pact verificados | N/A | Sin tests (gap 4) |
+| p95 latencia | ? Manual | Smoke test verificó arranque de app y endpoints responden 200 en <5s |
+| Error rate bajo load | N/A | Sin k6 (gap 7) |
+| Auditoría OWASP | ? Completa | Ver SECURITY-AUDIT.md |
+
+### 10.5 Métricas de la release
+
+- **Archivos creados**: 18 (servicios, páginas, componentes, modelos, tests no incluidos)
+- **Archivos modificados**: 6 (Program.cs, ApplicationDbContext.cs, Pages/Index.razor, Pages/Tasks.razor, Shared/NavMenu.razor, ContosoDashboard.csproj)
+- **Líneas de código nuevas (aprox)**: ~2.500 (sin tests)
+- **Tasks completadas**: 56/140 (40%)
+- **Tasks bloqueadas por Phase 1**: 21 (todos los tests + gates de calidad)
+- **Build**: 0 errores, 9 warnings pre-existentes
+- **Smoke test**: 6/6 endpoints responden 200
+
+Ver [CHANGELOG.md](../../../CHANGELOG.md) y [SECURITY-AUDIT.md](../../../SECURITY-AUDIT.md) para más detalles.

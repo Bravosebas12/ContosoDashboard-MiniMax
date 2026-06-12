@@ -1,0 +1,290 @@
+@* Vista detallada de una tarea con sección de documentos adjuntos. *@
+@* Ver T119 (US8 — Integración con tareas y dashboard). *@
+@page "/tasks/{Id:int}"
+@using System.Security.Claims
+@using ContosoDashboard.Models
+@using ContosoDashboard.Services
+@using ContosoDashboard.Services.Documents
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject ITaskService TaskService
+@inject IDocumentService DocumentService
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>@(_task?.Title ?? "Tarea") - ContosoDashboard</PageTitle>
+
+<div class="container mt-4">
+    @if (_loading)
+    {
+        <p><em>Cargando tarea...</em></p>
+    }
+    else if (_task == null)
+    {
+        <div class="alert alert-warning">No se encontró la tarea o no tienes acceso.</div>
+        <a href="/tasks" class="btn btn-secondary">← Volver a mis tareas</a>
+    }
+    else
+    {
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/tasks">Mis Tareas</a></li>
+                <li class="breadcrumb-item active">@_task.Title</li>
+            </ol>
+        </nav>
+
+        <div class="row">
+            <div class="col-md-7">
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">@_task.Title</h4>
+                        <span class="badge bg-@GetPriorityColor(_task.Priority)">@_task.Priority</span>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(_task.Description))
+                        {
+                            <p class="text-muted">@_task.Description</p>
+                        }
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <th style="width:30%">Estado</th>
+                                    <td>
+                                        <span class="badge bg-@GetStatusColor(_task.Status)">@GetStatusDisplay(_task.Status)</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Asignado a</th>
+                                    <td>@_task.AssignedUser.DisplayName</td>
+                                </tr>
+                                <tr>
+                                    <th>Creado por</th>
+                                    <td>@_task.CreatedByUser.DisplayName</td>
+                                </tr>
+                                @if (_task.DueDate.HasValue)
+                                {
+                                    var isOverdue = _task.DueDate.Value < DateTime.UtcNow && _task.Status != Models.TaskStatus.Completed;
+                                    <tr>
+                                        <th>Fecha límite</th>
+                                        <td>
+                                            <span class="@(isOverdue ? "text-danger fw-bold" : "")">
+                                                @_task.DueDate.Value.ToString("yyyy-MM-dd HH:mm") UTC
+                                                @if (isOverdue)
+                                                {
+                                                    <span class="badge bg-danger ms-1">Vencida</span>
+                                                }
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                                @if (_task.Project != null)
+                                {
+                                    <tr>
+                                        <th>Proyecto</th>
+                                        <td><a href="/projects/@_task.ProjectId">@_task.Project.Name</a></td>
+                                    </tr>
+                                }
+                                <tr>
+                                    <th>Creada</th>
+                                    <td>@_task.CreatedDate.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                @if (_task.Comments?.Any() == true)
+                {
+                    <div class="card mb-3">
+                        <div class="card-header"><h5 class="mb-0">Comentarios (@_task.Comments.Count)</h5></div>
+                        <div class="card-body">
+                            <ul class="list-unstyled mb-0">
+                                @foreach (var c in _task.Comments.OrderByDescending(c => c.CreatedDate))
+                                {
+                                    <li class="mb-2">
+                                        <strong>@c.User.DisplayName</strong>
+                                        <small class="text-muted">· @c.CreatedDate.ToString("yyyy-MM-dd HH:mm")</small>
+                                        <p class="mb-0">@c.CommentText</p>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="col-md-5">
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-paperclip"></i> Documentos adjuntos
+                        </h5>
+                        <button class="btn btn-sm btn-primary" @onclick="ToggleAttachPanel">
+                            <i class="bi bi-plus-circle"></i> Adjuntar
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @if (_showAttachPanel)
+                        {
+                            <div class="mb-3 p-2 border rounded bg-light">
+                                <DocumentUploadComponent OnUploaded="HandleDocumentAttached"
+                                                          PreSelectedProjectId="@_task.ProjectId"
+                                                          PreSelectedTaskId="Id"
+                                                          ShowProjectSelector="false" />
+                                <button class="btn btn-sm btn-link" @onclick="() => _showAttachPanel = false">Cancelar</button>
+                            </div>
+                        }
+
+                        @if (_loadingDocs)
+                        {
+                            <p class="text-muted small mb-0"><em>Cargando documentos...</em></p>
+                        }
+                        else if (_attachedDocs.Count == 0)
+                        {
+                            <p class="text-muted small mb-0">
+                                <i class="bi bi-info-circle"></i>
+                                No hay documentos adjuntos a esta tarea todavía.
+                            </p>
+                        }
+                        else
+                        {
+                            <ul class="list-group list-group-flush">
+                                @foreach (var doc in _attachedDocs)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <div class="flex-grow-1 me-2" style="min-width: 0;">
+                                            <a href="/documents/details/@doc.DocumentId" class="text-decoration-none">
+                                                <strong class="d-block text-truncate">@doc.Title</strong>
+                                            </a>
+                                            <small class="text-muted">
+                                                <span class="badge bg-secondary me-1">@doc.Category</span>
+                                                <span>@FormatSize(doc.FileSize)</span>
+                                                <span class="mx-1">·</span>
+                                                <span>@doc.UploadedAt.ToString("yyyy-MM-dd")</span>
+                                            </small>
+                                        </div>
+                                        <a href="/documents/download/@doc.DocumentId" class="btn btn-sm btn-outline-secondary" title="Descargar @doc.Title" aria-label="Descargar @doc.Title">
+                                            <i class="bi bi-download" aria-hidden="true"></i>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+
+                <a href="/tasks" class="btn btn-outline-secondary">← Volver a mis tareas</a>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger mt-3">@_errorMessage</div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private TaskItem? _task;
+    private List<DocumentDto> _attachedDocs = new();
+    private bool _loading = true;
+    private bool _loadingDocs;
+    private bool _showAttachPanel;
+    private string? _errorMessage;
+    private int _currentUserId;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            _currentUserId = ExtractUserId(auth.User);
+            if (_currentUserId == 0) { _task = null; return; }
+
+            _task = await TaskService.GetTaskByIdAsync(Id, _currentUserId);
+            if (_task != null)
+            {
+                await LoadAttachedDocsAsync();
+            }
+        }
+        catch (Exception ex) { _errorMessage = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task LoadAttachedDocsAsync()
+    {
+        if (_task == null) return;
+        _loadingDocs = true;
+        try
+        {
+            // T118: el ProjectId del doc es snapshot del task al momento de upload.
+            // Listamos todos los docs del proyecto que tengan TaskId == this.Id.
+            // Si el task no tiene ProjectId, no podemos hacer query por project; usamos search.
+            if (_task.ProjectId.HasValue)
+            {
+                var filter = new DocumentListFilter(ProjectId: _task.ProjectId);
+                var result = await DocumentService.ListAsync(filter, DocumentSortBy.UploadedAt, SortDirection.Desc, 1, 50, _currentUserId);
+                _attachedDocs = result.Items.Where(d => d.TaskId == Id).ToList();
+            }
+            else
+            {
+                var result = await DocumentService.ListAsync(new DocumentListFilter(), DocumentSortBy.UploadedAt, SortDirection.Desc, 1, 50, _currentUserId);
+                _attachedDocs = result.Items.Where(d => d.TaskId == Id).ToList();
+            }
+        }
+        catch (Exception ex) { _errorMessage = $"Error al cargar documentos: {ex.Message}"; }
+        finally { _loadingDocs = false; }
+    }
+
+    private void ToggleAttachPanel() => _showAttachPanel = !_showAttachPanel;
+
+    private async Task HandleDocumentAttached(DocumentDto _)
+    {
+        _showAttachPanel = false;
+        await LoadAttachedDocsAsync();
+    }
+
+    private static int ExtractUserId(ClaimsPrincipal user)
+    {
+        var nameId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(nameId, out var id) ? id : 0;
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:N1} KB";
+        return $"{bytes / 1024.0 / 1024.0:N2} MB";
+    }
+
+    private static string GetPriorityColor(TaskPriority p) => p switch
+    {
+        TaskPriority.Critical => "danger",
+        TaskPriority.High => "warning",
+        TaskPriority.Medium => "info",
+        TaskPriority.Low => "secondary",
+        _ => "secondary"
+    };
+
+    private static string GetStatusColor(Models.TaskStatus s) => s switch
+    {
+        Models.TaskStatus.NotStarted => "secondary",
+        Models.TaskStatus.InProgress => "primary",
+        Models.TaskStatus.Completed => "success",
+        _ => "secondary"
+    };
+
+    private static string GetStatusDisplay(Models.TaskStatus s) => s switch
+    {
+        Models.TaskStatus.NotStarted => "Not Started",
+        Models.TaskStatus.InProgress => "In Progress",
+        Models.TaskStatus.Completed => "Completed",
+        _ => s.ToString()
+    };
+}
