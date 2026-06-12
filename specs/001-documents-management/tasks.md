@@ -28,10 +28,10 @@
 - [x] T008 [P] Añadir paquetes NuGet a `ContosoDashboard.Tests.Performance/ContosoDashboard.Tests.Performance.csproj`: `xunit`, `BenchmarkDotNet`, `NBomber` (NBomber.Http omitido por incompatibilidad de versiones con NBomber 5.x — se reincorporará en una iteración futura)
 - [x] T009 [P] Añadir paquetes NuGet a `ContosoDashboard/ContosoDashboard.csproj`: `nClam` (cliente ClamAV), `Microsoft.Extensions.Caching.Memory` 8.0.x
 - [x] T010 Crear `ContosoDashboard.slnx` con `dotnet sln add` para todos los proyectos (8 .NET projects — formato XML nuevo de .NET 9+ SDK)
-- [ ] T011 [P] Crear `tests/k6/smoke.js`, `tests/k6/load.js`, `tests/k6/stress.js`, `tests/k6/spike.js`, `tests/k6/soak.js` con la configuración de carga del plan §5 load profiles
+- [x] T011 [P] Crear `tests/k6/smoke.js`, `tests/k6/load.js`, `tests/k6/stress.js`, `tests/k6/spike.js`, `tests/k6/soak.js` con la configuración de carga del plan §5 load profiles
 - [x] T012 Configurar `coverlet.runsettings` en raíz con thresholds: línea 40% (mínimo), branch 35% (mínimo), reportar a `quality-reports/coverage/`
 - [x] T013 [P] Configurar `[ExcludeFromCodeCoverage]` defaults via `.editorconfig` o `Directory.Build.props` solo para `bin/`, `obj/`, `Migrations/`, stubs y mappers
-- [ ] T014 [P] Agregar `Stryker.NET` configuration en `tests/stryker-config.json` con thresholds: break 70, high 80, low 60; scope = `ContosoDashboard/Services/Documents/**`, `ContosoDashboard/Domain/Documents/**`
+- [x] T014 [P] Agregar `Stryker.NET` configuration en `tests/stryker-config.json` con thresholds: break 70, high 80, low 60; scope = `ContosoDashboard/Services/Documents/**`, `ContosoDashboard/Domain/Documents/**`
 - [x] T015 [P] Agregar `.editorconfig` raíz con Roslyn analyzer rules: `dotnet_diagnostic.CA1050.severity = warning`, `CA1062 = warning`, `CA1822 = warning`, `CA2007 = warning`, `CA2016 = warning`, `CA2234 = warning`, `TreatWarningsAsErrors = true` (solo en producción)
 - [x] T016 Crear `tests/Directory.Build.props` con `<TreatWarningsAsErrors>false</TreatWarningsAsErrors>` y `Nullable=enable` para permitir warnings en proyectos de tests
 
@@ -45,27 +45,27 @@
 
 **⚠️ CRÍTICO**: Ningún trabajo de historia puede comenzar hasta que esta fase esté completa.
 
-- [ ] T017 [P] Crear `ContosoDashboard/Models/Document.cs` — entity `Document` con todas las propiedades del data-model.md §Document (DocumentId, Title, Description, Category, FilePath, FileSize, FileType, Tags, UploadedAt, UploadedByUserId, ProjectId, TaskId, ReplacedAt, AvScanStatus, AvScanAt, OriginalFileName) + enums `ScanStatus`
-- [ ] T018 [P] Crear `ContosoDashboard/Models/DocumentShare.cs` — entity `DocumentShare` (DocumentShareId, DocumentId, SharedWithUserId, SharedWithRole, Permission, SharedAt, SharedByUserId, ExpiresAt, RevokedAt, RevokedByUserId) + enum `SharePermission`
-- [ ] T019 [P] Crear `ContosoDashboard/Models/ActivityLog.cs` — entity `ActivityLog` (ActivityLogId, Event, DocumentId, UserId, IpAddress, Metadata, Timestamp)
-- [ ] T020 Extender `ContosoDashboard/Data/ApplicationDbContext.cs` — agregar `DbSet<Document>`, `DbSet<DocumentShare>`, `DbSet<ActivityLog>` con configuración Fluent API (longitudes, índices, FK relationships) según data-model.md §Modifications to Existing Tables
-- [ ] T021 Crear `dotnet ef migrations add InitialDocuments --project ContosoDashboard.csproj --startup-project ContosoDashboard.csproj` y revisar el SQL generado
-- [ ] T022 [P] Crear `ContosoDashboard/Services/Documents/IFileStorageService.cs` — interface con `UploadAsync`, `DownloadAsync`, `DeleteAsync`, `GetUrlAsync` (idéntico al contrato en `specs/001-documents-management/contracts/IFileStorageService.cs`)
-- [ ] T023 [P] Crear `ContosoDashboard/Services/Documents/LocalFileStorageService.cs` — implementación con `System.IO.File` que persiste en `AppData/uploads/{userId}/{projectIdOrPersonal}/{guid}.{ext}`
-- [ ] T024 [P] Crear `ContosoDashboard/Services/Documents/IAntivirusScanner.cs` — interface con `ScanAsync` + `ScanResult` record + `ScanStatus` enum (idéntico al contrato)
-- [ ] T025 [P] Crear `ContosoDashboard/Services/Documents/ClamAvScanner.cs` — implementación con nClam, fail-open en training + log warning
-- [ ] T026 [P] Crear `ContosoDashboard/Services/Documents/MimeTypeValidator.cs` — helper con whitelist de 16 MIME types, validación por extensión Y magic bytes (CHK008 gap)
-- [ ] T027 [P] Crear `ContosoDashboard/Services/Documents/FilePathBuilder.cs` — helper que genera paths seguros `{userId}/{projectIdOrPersonal}/{guid}.{ext}` con regex de validación
-- [ ] T028 [P] Crear `ContosoDashboard/Services/Documents/DocumentConstants.cs` — categorías permitidas (6), MIME whitelist (16), límites (25 MB, 5 tags, etc.)
-- [ ] T029 Registrar en `Program.cs`: `builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();` y `builder.Services.AddHttpClient<IAntivirusScanner, ClamAvScanner>();` + configurar `appsettings.json` con `Antivirus:ClamAV:Host`, `Port`, `Timeout`
-- [ ] T030 [P] Crear `ContosoDashboard/Services/IActivityLogService.cs` + `ContosoDashboard/Services/ActivityLogService.cs` — servicio para registrar eventos estructurados (upload, download, delete, share, revoke, access_denied) en `ActivityLog` tabla
-- [ ] T031 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/Documents/MimeTypeValidatorTests.cs` — tests TDD para la whitelist (red→green)
-- [ ] T032 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/Documents/FilePathBuilderTests.cs` — tests TDD para path generation
-- [ ] T033 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/Documents/LocalFileStorageServiceTests.cs` — unit tests con filesystem temporal (mock `IFileStorageService` para no tocar el disco real)
-- [ ] T034 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/ClamAvScannerTests.cs` — unit tests con un mock AV server (HTTP simulado) o substituto de `IAntivirusScanner`
-- [ ] T035 Aplicar migración con `dotnet ef database update` y verificar que las 3 tablas existen con sus índices
-- [ ] T036 [P] Crear `ContosoDashboard/Models/DocumentMappingProfile.cs` — método de extensión explícito `ToDto(Document)` y `FromUploadRequest(...)` (sin AutoMapper, per Constitución IV)
-- [ ] T037 Verificar que `dotnet test ContosoDashboard.Tests.Unit` corre los 4 test files (T031-T034) en verde (TDD green)
+- [x] T017 [P] Crear `ContosoDashboard/Models/Document.cs` — entity `Document` con todas las propiedades del data-model.md §Document (DocumentId, Title, Description, Category, FilePath, FileSize, FileType, Tags, UploadedAt, UploadedByUserId, ProjectId, TaskId, ReplacedAt, AvScanStatus, AvScanAt, OriginalFileName) + enums `ScanStatus`
+- [x] T018 [P] Crear `ContosoDashboard/Models/DocumentShare.cs` — entity `DocumentShare` (DocumentShareId, DocumentId, SharedWithUserId, SharedWithRole, Permission, SharedAt, SharedByUserId, ExpiresAt, RevokedAt, RevokedByUserId) + enum `SharePermission`
+- [x] T019 [P] Crear `ContosoDashboard/Models/ActivityLog.cs` — entity `ActivityLog` (ActivityLogId, Event, DocumentId, UserId, IpAddress, Metadata, Timestamp)
+- [x] T020 Extender `ContosoDashboard/Data/ApplicationDbContext.cs` — agregar `DbSet<Document>`, `DbSet<DocumentShare>`, `DbSet<ActivityLog>` con configuración Fluent API (longitudes, índices, FK relationships) según data-model.md §Modifications to Existing Tables
+- [x] T021 Crear `dotnet ef migrations add InitialDocuments --project ContosoDashboard.csproj --startup-project ContosoDashboard.csproj` y revisar el SQL generado
+- [x] T022 [P] Crear `ContosoDashboard/Services/Documents/IFileStorageService.cs` — interface con `UploadAsync`, `DownloadAsync`, `DeleteAsync`, `GetUrlAsync` (idéntico al contrato en `specs/001-documents-management/contracts/IFileStorageService.cs`)
+- [x] T023 [P] Crear `ContosoDashboard/Services/Documents/LocalFileStorageService.cs` — implementación con `System.IO.File` que persiste en `AppData/uploads/{userId}/{projectIdOrPersonal}/{guid}.{ext}`
+- [x] T024 [P] Crear `ContosoDashboard/Services/Documents/IAntivirusScanner.cs` — interface con `ScanAsync` + `ScanResult` record + `ScanStatus` enum (idéntico al contrato)
+- [x] T025 [P] Crear `ContosoDashboard/Services/Documents/ClamAvScanner.cs` — implementación con nClam, fail-open en training + log warning
+- [x] T026 [P] Crear `ContosoDashboard/Services/Documents/MimeTypeValidator.cs` — helper con whitelist de 16 MIME types, validación por extensión Y magic bytes (CHK008 gap)
+- [x] T027 [P] Crear `ContosoDashboard/Services/Documents/FilePathBuilder.cs` — helper que genera paths seguros `{userId}/{projectIdOrPersonal}/{guid}.{ext}` con regex de validación
+- [x] T028 [P] Crear `ContosoDashboard/Services/Documents/DocumentConstants.cs` — categorías permitidas (6), MIME whitelist (16), límites (25 MB, 5 tags, etc.)
+- [x] T029 Registrar en `Program.cs`: `builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();` y `builder.Services.AddHttpClient<IAntivirusScanner, ClamAvScanner>();` + configurar `appsettings.json` con `Antivirus:ClamAV:Host`, `Port`, `Timeout`
+- [x] T030 [P] Crear `ContosoDashboard/Services/IActivityLogService.cs` + `ContosoDashboard/Services/ActivityLogService.cs` — servicio para registrar eventos estructurados (upload, download, delete, share, revoke, access_denied) en `ActivityLog` tabla
+- [x] T031 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/Documents/MimeTypeValidatorTests.cs` — tests TDD para la whitelist (red→green)
+- [x] T032 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/Documents/FilePathBuilderTests.cs` — tests TDD para path generation
+- [x] T033 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/Documents/LocalFileStorageServiceTests.cs` — unit tests con filesystem temporal (mock `IFileStorageService` para no tocar el disco real)
+- [x] T034 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/ClamAvScannerTests.cs` — unit tests con un mock AV server (HTTP simulado) o substituto de `IAntivirusScanner`
+- [x] T035 Aplicar migración con `dotnet ef database update` y verificar que las 3 tablas existen con sus índices
+- [x] T036 [P] Crear `ContosoDashboard/Models/DocumentMappingProfile.cs` — método de extensión explícito `ToDto(Document)` y `FromUploadRequest(...)` (sin AutoMapper, per Constitución IV)
+- [x] T037 Verificar que `dotnet test ContosoDashboard.Tests.Unit` corre los 4 test files (T031-T034) en verde (TDD green)
 
 **Checkpoint**: Las 3 entidades existen en DB, los servicios base están registrados en DI, y los 4 unit tests de helpers pasan. Las historias pueden comenzar.
 
@@ -79,25 +79,25 @@
 
 ### Tests para User Story 1 (TDD Hard - PRIMERO)
 
-- [ ] T038 [P] [US1] Crear `tests/ContosoDashboard.Tests.Unit/Services/DocumentServiceTests.cs` con tests para `UploadAsync` (validación, AV, persistencia, rollback, autorización) — **DEBE** fallar antes de implementar T041
-- [ ] T039 [P] [US1] Crear `tests/ContosoDashboard.Tests.Components/DocumentUploadComponentTests.cs` con bUnit — render, selección de archivo, validación de formulario, clic en Subir
-- [ ] T040 [P] [US1] Crear `tests/ContosoDashboard.Tests.Integration/DocumentServiceIntegrationTests.cs` con `WebApplicationFactory` + Testcontainers SQL Server — happy path de upload con verificación de file en disco, row en DB, log entry
+- [x] T038 [P] [US1] Crear `tests/ContosoDashboard.Tests.Unit/Services/DocumentServiceTests.cs` con tests para `UploadAsync` (validación, AV, persistencia, rollback, autorización) — **DEBE** fallar antes de implementar T041
+- [x] T039 [P] [US1] Crear `tests/ContosoDashboard.Tests.Components/DocumentUploadComponentTests.cs` con bUnit — render, selección de archivo, validación de formulario, clic en Subir
+- [x] T040 [P] [US1] Crear `tests/ContosoDashboard.Tests.Integration/DocumentServiceIntegrationTests.cs` con `WebApplicationFactory` + Testcontainers SQL Server — happy path de upload con verificación de file en disco, row en DB, log entry
 
 ### Implementación para User Story 1
 
-- [ ] T041 [US1] Crear `ContosoDashboard/Services/Documents/IDocumentService.cs` — interface (idéntico al contrato) con `UploadAsync`, `ListAsync`, `GetByIdAsync`, `OpenForDownloadAsync`, `UpdateMetadataAsync`, `ReplaceFileAsync`, `DeleteAsync`, `SearchAsync`
-- [ ] T042 [US1] Crear `ContosoDashboard/Services/Documents/DocumentService.cs` — implementar `UploadAsync` con flujo: validate → AV scan → generate GUID → write disk → save DB (rollback on fail) → notify project members (if ProjectId) → log `document.uploaded` → return `UploadResult`
-- [ ] T043 [US1] Crear `ContosoDashboard/Services/Documents/Dto/DocumentDto.cs` + `UploadResult` + `PagedResult<T>` + `DocumentListFilter` + `DocumentSortBy` + `SortDirection` + excepciones (`DocumentNotFoundException`, `DocumentUnauthorizedAccessException`, `DocumentValidationException`, `DocumentInfectedException`)
-- [ ] T044 [P] [US1] Crear `ContosoDashboard/Shared/DocumentUploadComponent.razor` — componente reutilizable con `<InputFile>`, formulario (title, description, category, tags), botón Subir, barra de progreso
+- [x] T041 [US1] Crear `ContosoDashboard/Services/Documents/IDocumentService.cs` — interface (idéntico al contrato) con `UploadAsync`, `ListAsync`, `GetByIdAsync`, `OpenForDownloadAsync`, `UpdateMetadataAsync`, `ReplaceFileAsync`, `DeleteAsync`, `SearchAsync`
+- [x] T042 [US1] Crear `ContosoDashboard/Services/Documents/DocumentService.cs` — implementar `UploadAsync` con flujo: validate → AV scan → generate GUID → write disk → save DB (rollback on fail) → notify project members (if ProjectId) → log `document.uploaded` → return `UploadResult`
+- [x] T043 [US1] Crear `ContosoDashboard/Services/Documents/Dto/DocumentDto.cs` + `UploadResult` + `PagedResult<T>` + `DocumentListFilter` + `DocumentSortBy` + `SortDirection` + excepciones (`DocumentNotFoundException`, `DocumentUnauthorizedAccessException`, `DocumentValidationException`, `DocumentInfectedException`)
+- [x] T044 [P] [US1] Crear `ContosoDashboard/Shared/DocumentUploadComponent.razor` — componente reutilizable con `<InputFile>`, formulario (title, description, category, tags), botón Subir, barra de progreso
 - [ ] T045 [P] [US1] Crear `ContosoDashboard/Shared/DocumentUploadComponent.razor.cs` — codebehind con `OnInitializedAsync`, handler `HandleSubmit`, uso de `MemoryStream` pattern per stakeholder doc
-- [ ] T046 [US1] Crear `ContosoDashboard/Pages/Documents.razor` — listado de "Mis Documentos" + botón Upload + tabla con título, fecha, tamaño, tipo
+- [x] T046 [US1] Crear `ContosoDashboard/Pages/Documents.razor` — listado de "Mis Documentos" + botón Upload + tabla con título, fecha, tamaño, tipo
 - [ ] T047 [US1] Crear `ContosoDashboard/Pages/Documents.razor.cs` — codebehind con `@inject IDocumentService`, cargar `DocumentDtos` con paginación (page 1, 25 items)
-- [ ] T048 [US1] Agregar `[Authorize(Policy = "Employee")]` a `Pages/Documents.razor` (defense in depth layer 1)
-- [ ] T049 [US1] Implementar validación de formulario en `DocumentUploadComponent` (título 1-200, max 5 tags, max 50 chars/tag)
-- [ ] T050 [US1] Implementar logging de `document.uploaded` en `ActivityLog` con `documentId`, `userId`, `fileSize`, `mimeType`, `result=success|failure`
+- [x] T048 [US1] Agregar `[Authorize(Policy = "Employee")]` a `Pages/Documents.razor` (defense in depth layer 1)
+- [x] T049 [US1] Implementar validación de formulario en `DocumentUploadComponent` (título 1-200, max 5 tags, max 50 chars/tag)
+- [x] T050 [US1] Implementar logging de `document.uploaded` en `ActivityLog` con `documentId`, `userId`, `fileSize`, `mimeType`, `result=success|failure`
 - [ ] T051 [US1] Verificar que `dotnet test` (unit + component + integration) pasa para US1 con coverage ≥ 80% en `Services/Documents/DocumentService.cs`
-- [ ] T052 [P] [US1] Crear `tests/ContosoDashboard.Tests.E2E.Api/DocumentsUploadTests.cs` — RestSharp contra `WebApplicationFactory`, 100% happy path
-- [ ] T053 [P] [US1] Crear `tests/ContosoDashboard.Tests.Contract/DocumentsUploadPactTests.cs` — PactNet consumer-driven contra `/api/documents/upload`
+- [x] T052 [P] [US1] Crear `tests/ContosoDashboard.Tests.E2E.Api/DocumentsUploadTests.cs` — RestSharp contra `WebApplicationFactory`, 100% happy path
+- [x] T053 [P] [US1] Crear `tests/ContosoDashboard.Tests.Contract/DocumentsUploadPactTests.cs` — PactNet consumer-driven contra `/api/documents/upload`
 - [ ] T054 [US1] Verificar que el flujo end-to-end (login → upload → ver en lista) funciona manualmente siguiendo `quickstart.md` Scenario 1
 
 **Checkpoint**: US1 completamente funcional y testeable independientemente. Un Employee puede subir un PDF y verlo en su lista.

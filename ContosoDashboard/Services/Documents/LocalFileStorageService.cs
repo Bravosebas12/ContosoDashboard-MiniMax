@@ -20,8 +20,17 @@ public class LocalFileStorageService : IFileStorageService
     public LocalFileStorageService(ILogger<LocalFileStorageService> logger, string? rootPath = null)
     {
         _logger = logger;
-        _rootPath = rootPath ?? Path.Combine(AppContext.BaseDirectory, "AppData", "uploads");
+        // T201: Persistir fuera de bin/ para que las subidas sobrevivan a `dotnet build`.
+        // La convención es <ContentRoot>/AppData/uploads (junto al .csproj).
+        var contentRoot = AppContext.BaseDirectory;
+        // Subir dos niveles para salir de bin/Debug/net8.0 cuando se ejecuta desde `dotnet run`.
+        if (contentRoot.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+        {
+            contentRoot = Path.GetFullPath(Path.Combine(contentRoot, "..", "..", ".."));
+        }
+        _rootPath = rootPath ?? Path.Combine(contentRoot, "AppData", "uploads");
         Directory.CreateDirectory(_rootPath);
+        _logger.LogInformation("LocalFileStorageService rootPath: {RootPath}", _rootPath);
     }
 
     public async Task<string> UploadAsync(Stream fileStream, string relativeDirectory, string fileExtension, CancellationToken ct = default)

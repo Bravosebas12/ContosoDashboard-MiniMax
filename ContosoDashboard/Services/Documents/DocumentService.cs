@@ -132,14 +132,20 @@ public class DocumentService : IDocumentService
             if (task != null) projectId = task.ProjectId;
         }
 
-        // 5. Generar path seguro
-        var relativePath = _pathBuilder.BuildPath(currentUserId.ToString(), projectId, extension);
+        // 5. Calcular el directorio donde vivirá el archivo (sin el GUID; el storage lo genera).
+        // IMPORTANTE: el path que devuelve _storage.UploadAsync contiene el GUID que el storage
+        // eligió. La BD DEBE guardar ese path exacto, no uno calculado por separado, porque
+        // de lo contrario se rompe la correspondencia entre FilePath (DB) y archivo en disco.
+        var relativeDirectory = projectId.HasValue
+            ? $"{currentUserId}/{projectId.Value}"
+            : $"{currentUserId}/personal";
 
         // 6. Persistir archivo en disco
         if (fileStream.CanSeek) fileStream.Position = 0;
+        string relativePath;
         try
         {
-            await _storage.UploadAsync(fileStream, Path.GetDirectoryName(relativePath)!.Replace('\\', '/'), extension, ct);
+            relativePath = await _storage.UploadAsync(fileStream, relativeDirectory, extension, ct);
         }
         catch (Exception ex)
         {
@@ -406,12 +412,13 @@ public class DocumentService : IDocumentService
         if (scan.Status == ScanStatus.Infected)
             throw new DocumentInfectedException(scan.ThreatName);
 
-        // New GUID (last-writer-wins: per Clarifications Q3)
-        var newPath = _pathBuilder.BuildPath(currentUserId.ToString(), doc.ProjectId, extension);
+        // El storage genera el GUID; usamos su path devuelto para que coincida con disco.
+        var replaceDir = doc.ProjectId.HasValue
+            ? $"{currentUserId}/{doc.ProjectId.Value}"
+            : $"{currentUserId}/personal";
 
         if (newFileStream.CanSeek) newFileStream.Position = 0;
-        var newDir = Path.GetDirectoryName(newPath)!.Replace('\\', '/');
-        await _storage.UploadAsync(newFileStream, newDir, extension, ct);
+        var newPath = await _storage.UploadAsync(newFileStream, replaceDir, extension, ct);
 
         var oldSize = doc.FileSize;
         doc.FilePath = newPath;

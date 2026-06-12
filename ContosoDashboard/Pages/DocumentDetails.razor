@@ -118,12 +118,12 @@
                 <div class="card mb-3">
                     <div class="card-header"><h5 class="mb-0">Acciones</h5></div>
                     <div class="card-body d-grid gap-2">
-                        <a href="/documents/download/@_doc.DocumentId" class="btn btn-primary" aria-label="Descargar documento @_doc.OriginalFileName">
+                        <a href="/DocumentFiles/Download?id=@_doc.DocumentId" class="btn btn-primary" aria-label="Descargar documento @_doc.OriginalFileName">
                             ⬇ Descargar (@FormatSize(_doc.FileSize))
                         </a>
                         @if (IsPreviewable())
                         {
-                            <a href="/documents/preview/@_doc.DocumentId" target="_blank" class="btn btn-outline-primary" aria-label="Abrir vista previa en pestaña nueva">
+                            <a href="/DocumentFiles/Preview?id=@_doc.DocumentId" target="_blank" class="btn btn-outline-primary" aria-label="Abrir vista previa en pestaña nueva">
                                 👁 Vista previa en pestaña nueva
                             </a>
                         }

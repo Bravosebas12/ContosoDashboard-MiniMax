@@ -23,7 +23,7 @@ else if (Document.FileSize > DocumentConstants.MaxPreviewSizeBytes)
 else
 {
     <div class="ratio ratio-16x9 border">
-        <iframe src="/documents/preview/@Document.DocumentId"
+        <iframe src="/DocumentFiles/Preview?id=@Document.DocumentId"
                 sandbox="allow-same-origin"
                 title="Vista previa de @Document.Title"
                 style="border:0"></iframe>

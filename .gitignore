@@ -258,6 +258,14 @@ ServiceFabricBackup/
 *.ndf
 
 # Business Intelligence projects
+
+# Universal OS/editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+.env*
 *.rdl.data
 *.bim.layout
 *.bim_*.settings
