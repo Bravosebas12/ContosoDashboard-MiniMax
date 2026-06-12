@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "crap-analysis": {
+      "source": "aaronontheweb/dotnet-skills",
+      "sourceType": "github",
+      "skillPath": "skills/crap-analysis/SKILL.md",
+      "computedHash": "0999d68191c41b664489c1ecaf5c27b2431efc8c78c763906b66b335547c7d02"
+    }
+  }
+}

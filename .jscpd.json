@@ -1,0 +1,28 @@
+{
+  "threshold": 5,
+  "reporters": [
+    "markdown",
+    "console"
+  ],
+  "output": "./quality-reports/duplication",
+  "format": [
+    "csharp",
+    "cs"
+  ],
+  "ignore": [
+    "**/bin/**",
+    "**/obj/**",
+    "**/node_modules/**",
+    "**/wwwroot/lib/**",
+    "**/wwwroot/css/**",
+    "**/*.min.js",
+    "**/*.min.css",
+    "**/Migrations/**",
+    "**/.git/**"
+  ],
+  "absolute": false,
+  "noSymlinks": true,
+  "skipLocal": false,
+  "minLines": 5,
+  "minTokens": 50
+}
