@@ -23,6 +23,7 @@ tests/
 C# 12 sobre .NET 8.0 LTS (alineado con Constitución I): Follow standard conventions
 
 ## Recent Changes
+- 001-documents-management: Added C# 12 sobre .NET 8.0 LTS (alineado con Constitución I)
 
 - 001-documents-management: Added C# 12 sobre .NET 8.0 LTS (alineado con Constitución I)
 
