@@ -98,7 +98,7 @@ public class DocumentShareService : IDocumentShareService
         _db.DocumentShares.Add(share);
         await _db.SaveChangesAsync(ct);
 
-        // 7. Enviar notificación al receptor
+        // 7. Enviar notificación al receptor (via queue, resuelve A2/A3).
         bool notificationDelivered = false;
         try
         {
@@ -112,12 +112,12 @@ public class DocumentShareService : IDocumentShareService
                 CreatedDate = DateTime.UtcNow,
                 IsRead = false,
             };
-            await _notifications.CreateNotificationAsync(notification);
+            await _notifications.EnqueueAsync(notification, ct);
             notificationDelivered = true;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Fallo al notificar al usuario {UserId} del share del documento {DocumentId}", request.TargetUserId, request.DocumentId);
+            _logger.LogWarning(ex, "Fallo al enqueuear notificación al usuario {UserId} del share del documento {DocumentId}", request.TargetUserId, request.DocumentId);
         }
 
         // 8. Log auditoría
@@ -147,7 +147,7 @@ public class DocumentShareService : IDocumentShareService
         share.RevokedByUserId = currentUserId;
         await _db.SaveChangesAsync(ct);
 
-        // Notificar al receptor
+        // Notificar al receptor (via queue, resuelve A2/A3)
         try
         {
             if (share.SharedWithUserId.HasValue)
@@ -163,12 +163,12 @@ public class DocumentShareService : IDocumentShareService
                     CreatedDate = DateTime.UtcNow,
                     IsRead = false,
                 };
-                await _notifications.CreateNotificationAsync(notification);
+                await _notifications.EnqueueAsync(notification, ct);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Fallo al notificar revocación de share {ShareId}", documentShareId);
+            _logger.LogWarning(ex, "Fallo al enqueuear notificación de revocación de share {ShareId}", documentShareId);
         }
 
         await _activityLog.LogAsync(ActivityLogEvents.DocumentRevoked, share.DocumentId, currentUserId, null,

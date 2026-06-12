@@ -1,20 +1,24 @@
 using System;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using ContosoDashboard.Data;
-using ContosoDashboard.Models;
 using Microsoft.Extensions.Logging;
 
 namespace ContosoDashboard.Services.Documents;
 
 /// <summary>
-/// Servicio para registrar eventos de auditoría en <see cref="ActivityLog"/>.
-/// Usado por todos los servicios del dominio (DocumentService, DocumentShareService)
-/// y por middleware de autorización (defense in depth — para loguear 403).
+/// Servicio de auditoría. En lugar de escribir directamente en <c>ActivityLog</c>
+/// (lo que causaba <c>InvalidOperationException</c> por concurrencia con el DbContext scoped),
+/// enqueuea la entry a <see cref="IActivityLogQueue"/> para que el <see cref="ActivityLogBackgroundService"/>
+/// la persista con su propio scope.
 /// </summary>
 public interface IActivityLogService
 {
-    Task LogAsync(
+    /// <summary>
+    /// Enqueuea un evento de auditoría. No bloquea — retorna inmediatamente tras enqueuear.
+    /// La persistencia real ocurre en background.
+    /// </summary>
+    ValueTask LogAsync(
         string @event,
         int? documentId,
         int userId,
@@ -25,16 +29,16 @@ public interface IActivityLogService
 
 public class ActivityLogService : IActivityLogService
 {
-    private readonly ApplicationDbContext _db;
+    private readonly IActivityLogQueue _queue;
     private readonly ILogger<ActivityLogService> _logger;
 
-    public ActivityLogService(ApplicationDbContext db, ILogger<ActivityLogService> logger)
+    public ActivityLogService(IActivityLogQueue queue, ILogger<ActivityLogService> logger)
     {
-        _db = db;
+        _queue = queue;
         _logger = logger;
     }
 
-    public async Task LogAsync(
+    public ValueTask LogAsync(
         string @event,
         int? documentId,
         int userId,
@@ -42,27 +46,19 @@ public class ActivityLogService : IActivityLogService
         object? metadata = null,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(@event)) throw new ArgumentException("Event requerido.", nameof(@event));
+        if (string.IsNullOrWhiteSpace(@event))
+            throw new ArgumentException("Event requerido.", nameof(@event));
 
-        try
-        {
-            var entry = new ActivityLog
-            {
-                Event = @event,
-                DocumentId = documentId,
-                UserId = userId,
-                IpAddress = ipAddress,
-                Metadata = metadata is null ? null : System.Text.Json.JsonSerializer.Serialize(metadata),
-                Timestamp = DateTime.UtcNow,
-            };
-            _db.ActivityLogs.Add(entry);
-            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            // Log estructurado aunque la DB falle — Constitución II.A09
-            _logger.LogError(ex, "Fallo al registrar evento {Event} para usuario {UserId} (doc={DocumentId})",
-                @event, userId, documentId);
-        }
+        var entry = new ActivityLogEntry(
+            Event: @event,
+            DocumentId: documentId,
+            UserId: userId,
+            IpAddress: ipAddress,
+            MetadataJson: metadata is null ? null : JsonSerializer.Serialize(metadata),
+            Timestamp: DateTime.UtcNow);
+
+        // Enqueue sin await del SaveChangesAsync (que ya no ocurre aquí).
+        // Esto resuelve A1: el productor nunca toca el DbContext.
+        return _queue.EnqueueAsync(entry, ct);
     }
 }

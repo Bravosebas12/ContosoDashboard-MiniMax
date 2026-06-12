@@ -220,7 +220,8 @@ public class DocumentService : IDocumentService
                     CreatedDate = DateTime.UtcNow,
                     IsRead = false,
                 };
-                await _notifications.CreateNotificationAsync(notification);
+                // Enqueue (resuelve A2): el productor nunca toca el DbContext.
+                await _notifications.EnqueueAsync(notification, ct);
             }
         }
         catch (Exception ex)
@@ -353,9 +354,11 @@ public class DocumentService : IDocumentService
         var doc = await GetByIdAsync(documentId, currentUserId, ct);
         var stream = await _storage.DownloadAsync(doc.FilePath, ct);
 
-        // Log asíncrono (fire-and-forget) — no bloqueamos la descarga
-        _ = _activityLog.LogAsync(ActivityLogEvents.DocumentDownloaded, documentId, currentUserId, null,
-            new { fileName = doc.OriginalFileName, fileSize = doc.FileSize }, CancellationToken.None);
+        // Log asíncrono vía queue (resuelve A1). El await es cheap (~microsegundos) porque
+        // solo enqueuea; la persistencia real ocurre en ActivityLogBackgroundService con
+        // su propio scope/DBContext.
+        await _activityLog.LogAsync(ActivityLogEvents.DocumentDownloaded, documentId, currentUserId, null,
+            new { fileName = doc.OriginalFileName, fileSize = doc.FileSize }, ct);
 
         return (stream, doc.OriginalFileName, doc.FileType);
     }

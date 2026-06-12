@@ -60,6 +60,14 @@ builder.Services.AddScoped<IActivityLogCleanupService, ActivityLogCleanupService
 // T131: Background service que limpia logs > 90 días diariamente (per FR-031).
 builder.Services.AddHostedService<ActivityLogCleanupBackgroundService>();
 
+// Opción A (fix A1, A2, A3, A5): Channel-based product/consumer para logging y notifications.
+// Las queues son Singleton (thread-safe por diseño). Los background services crean su propio
+// scope/DBContext por entry, eliminando el InvalidOperationException de concurrencia.
+builder.Services.AddSingleton<IActivityLogQueue, ActivityLogQueue>();
+builder.Services.AddSingleton<INotificationQueue, NotificationQueue>();
+builder.Services.AddHostedService<ActivityLogBackgroundService>();
+builder.Services.AddHostedService<NotificationBackgroundService>();
+
 // Add HttpContextAccessor for accessing user claims
 builder.Services.AddHttpContextAccessor();
 
