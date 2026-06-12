@@ -1,33 +1,34 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change:    (none) -> 1.0.0
-Version bump:      MAJOR (initial ratification - defines principles for the first time)
+Version change:    1.0.0 -> 1.1.0
+Version bump:      MINOR (material expansion of Principle V: TDD Hard + complete test pyramid)
 Modified principles:
-  - [PRINCIPLE_1_NAME] -> I. Estándares Tecnológicos (Technological Standards)
-  - [PRINCIPLE_2_NAME] -> II. Requisitos de Seguridad (Security Requirements)
-  - [PRINCIPLE_3_NAME] -> III. Rendimiento y Escalabilidad (Performance and Scalability)
-  - [PRINCIPLE_4_NAME] -> IV. Estándares y Directrices de Código (Code Standards and Guidelines)
-  - [PRINCIPLE_5_NAME] -> V. Test-First (NON-NEGOTIABLE)  [derived, supports Principle IV]
+  - V. Test-First (NON-NEGOTIABLE) -> V. TDD Hard + Pirámide de Pruebas Completa
+      * Añadidas: pruebas de mutación (Stryker.NET)
+      * Añadidas: pruebas de componentes (bUnit)
+      * Añadidas: pruebas de contrato (PactNet)
+      * Añadidas: pruebas E2E separadas (API y UI)
+      * Añadidas: pruebas de rendimiento con pirámide aplicada a todos los niveles
+      * Refinadas: unitarias divididas en funcionales y técnicas
+      * Sub-requisito: ciclo ROJO -> VERDE -> REFACTOR es bloqueante
 Added sections:
-  - "Restricciones Adicionales" (Additional Constraints)
-  - "Flujo de Desarrollo" (Development Workflow)
-  - "Gobernanza" (Governance) - populated with concrete rules
+  - Quality gates ampliados en "Flujo de Desarrollo" con 8 tipos de test
 Removed sections:
-  - All [SECTION_2_NAME], [SECTION_3_NAME] placeholders (replaced with concrete content)
+  - None
 Templates requiring updates:
-  - .specify/templates/constitution-template.md     ✅ unchanged (this file is regenerated from it)
-  - .specify/templates/plan-template.md             ✅ unchanged (uses [Gates determined based on constitution file] - dynamic)
-  - .specify/templates/spec-template.md             ✅ unchanged (no direct constitution refs)
-  - .specify/templates/tasks-template.md            ✅ unchanged (no direct constitution refs)
-  - .specify/templates/checklist-template.md        ✅ unchanged (no direct constitution refs)
-  - .specify/templates/agent-file-template.md       ✅ unchanged
+  - .specify/templates/plan-template.md      ⚠ review "Testing Strategy" section if present
+  - .specify/templates/tasks-template.md     ✅ unchanged (no specific test type required)
+  - .specify/templates/spec-template.md      ✅ unchanged
+  - .specify/templates/checklist-template.md ⚠ review if pre-release checklist enumerates tests
+  - .specify/templates/agent-file-template.md✅ unchanged
 Deferred items:
-  - None. All placeholders resolved.
+  - None. All requirements in this version resolvable with existing .NET tooling.
 Skills consulted:
-  - sigat-security-owasp  (OWASP Top 10 -> Security Requirements section)
-  - crap-analysis          (CRAP score thresholds, coverage gates -> Code Standards section)
-  - sqlserver-dba          (DB performance and indexing -> Performance section)
+  - sigat-security-owasp  (carried over from v1.0.0)
+  - crap-analysis          (carried over from v1.0.0; now also anchors mutation/coverage gates)
+  - sqlserver-dba          (carried over from v1.0.0)
+  - unit-testing-vitest    (test pyramid structure inspiration; principles transferred to .NET)
   - find-skills            (CLI for skill discovery, not for content)
 ================================================================
 -->
@@ -161,22 +162,109 @@ El código **DEBE** ser legible, testeable y mantenible. Las siguientes reglas s
 
 ---
 
-### V. Test-First (NON-NEGOTIABLE)
+### V. TDD Hard + Pirámide de Pruebas Completa (NON-NEGOTIABLE)
 
-Para toda funcionalidad de dominio (no UI), el ciclo **ROJO → VERDE → REFACTOR** es obligatorio:
+Toda nueva funcionalidad de dominio **DEBE** seguir el ciclo TDD **estricto** antes de fusionar a `main`. Este principio es **NO NEGOCIABLE**: ningún PR con código de producción sin tests correspondientes es aceptado. La pirámide se aplica **también a las pruebas de rendimiento** a todos los niveles.
 
-1. **Escribir** el test que cubre el comportamiento deseado.
-2. **Verificar** que el test falla (rojo).
-3. **Implementar** el código mínimo para que pase (verde).
-4. **Refactorizar** sin romper tests.
+#### V.1 — Ciclo TDD Hard (bloqueante)
 
-**Pirámide de tests**
+Para cada historia de usuario, historia técnica o corrección de bug, el flujo **DEBE** ser:
 
-- **Unitarios** (>= 80% de cobertura de líneas): servicios de dominio, helpers, extensiones.
-- **Integración** (>= 50%): endpoints HTTP, repositorios EF Core con `InMemory` provider o Testcontainers.
-- **E2E / UI** (smoke): flujos críticos con Playwright o bUnit para componentes Blazor.
+1. **ROJO**: escribir PRIMERO los tests que expresan el comportamiento esperado; el PR **DEBE** abrirse con tests que fallen demostrablemente.
+2. **VERDE**: implementar el código de producción mínimo que haga pasar los tests. Sin tests, no hay código de producción.
+3. **REFACTOR**: mejorar el diseño sin romper tests, manteniendo la cobertura y la calidad.
+4. **REVISIÓN**: code review verifica que el ciclo se siguió (diff de tests precede a diff de producción).
 
-**Cobertura**: ver tabla en Principio IV. Cobertura < 40% en líneas **bloquea** el merge.
+**Excepción documentada**: hot-fixes de seguridad críticos (CVE activo) pueden saltarse el ROJO, **DEBEN** incluir tests de regresión en el mismo PR y dejar ticket de seguimiento.
+
+#### V.2 — Pirámide de Pruebas Completa (8 niveles)
+
+Cada nivel tiene **propósito, herramienta, scope y umbral** definidos. Ningún nivel es opcional.
+
+| # | Nivel | Propósito | Herramienta .NET | Scope | Umbral mínimo |
+|---|-------|-----------|------------------|-------|----------------|
+| 1 | **Unit funcionales** | Comportamiento observable del dominio (casos de uso, reglas de negocio) | **xUnit** + **NSubstitute** o **Moq** | Una clase/método aislado, sin I/O real | >= 80% cobertura de líneas en `Services/` y `Domain/` |
+| 2 | **Unit técnicas** | Edge cases, casos de error, boundaries, mutaciones internas | **xUnit** + **FluentAssertions** | Helpers, extensiones, validadores, mappers | >= 70% en `Utils/`, `Extensions/`, `Mappers/` |
+| 3 | **Componentes** | Renderizado e interacción de componentes Blazor aislados | **bUnit** | Un componente `.razor` con sus dependencias inyectadas | >= 60% de los componentes con interacción |
+| 4 | **Integración** | Contratos entre módulos reales (DB, HTTP, servicios externos) | `WebApplicationFactory<Program>` + **Testcontainers** (SQL Server) | Repositorios EF, endpoints, mensajes | >= 50% cobertura de ramas en `Data/` y endpoints HTTP |
+| 5 | **Contrato** | Compatibilidad API consumidor↔productor (consumer-driven) | **PactNet** + Pact Broker | Endpoints públicos y DTOs compartidos | 100% de los endpoints públicos con pacto verificado |
+| 6 | **E2E API** | Flujos completos a través de la API HTTP | **RestSharp** / `HttpClient` con `WebApplicationFactory` | Flujos críticos de negocio (login, CRUD) | >= 100% de los happy paths |
+| 7 | **E2E UI** | Flujos completos a través del navegador | **Microsoft Playwright** (con bUnit para assertions Blazor) | User journeys críticos end-to-end | Smoke + 1 happy path por feature principal |
+| 8 | **Rendimiento** | Latencia, throughput, estabilidad bajo carga | **NBomber** / **k6** / **BenchmarkDotNet** (ver V.4) | Ver pirámide de rendimiento V.4 | Ver umbrales V.4 |
+
+**Cobertura de código** (verificable por el agente `/code-quality`):
+
+- Líneas: **>= 80%** (target), **>= 40%** (mínimo absoluto).
+- Branches: **>= 75%** (target), **>= 35%** (mínimo absoluto).
+- Métodos: 100% de los métodos públicos **DEBEN** estar cubiertos (mínimo 1 test por método).
+- `<ExcludeFromCodeCoverageAttribute>` **PROHIBIDO** salvo justificación aprobada en PR.
+
+#### V.3 — Pruebas de Mutación (Mutation Testing)
+
+La cobertura de líneas/branches **NO** es suficiente: un test que ejecuta código sin verificar su comportamiento tiene 100% de cobertura y 0% de valor. Las **pruebas de mutación** validan la calidad de los tests.
+
+- **Herramienta**: **Stryker.NET** (mutaciones a nivel de statements, branches, y strings).
+- **Alcance**: todo el código de `Domain/`, `Services/`, validadores, y parsers.
+- **Mutation score mínimo**: **>= 70%** (target **>= 80%**).
+- **Frecuencia**: en CI, en cada PR; en local, antes de pedir review.
+- **Mutantes sobrevivientes**: deben justificarse explícitamente (equivalente a `Stryker.NET` ignore) **O** eliminarse (test que sí detecte la mutación).
+- **Stubs y AutoMapper excluidos** del scope de mutación (mutaciones equivalentes sin valor).
+
+```bash
+# Comando local
+dotnet stryker --project "src/ContosoDashboard.Services" --threshold-break 70 --threshold-high 80 --threshold-low 60
+```
+
+#### V.4 — Pirámide de Pruebas de Rendimiento (aplicada a todos los niveles)
+
+El rendimiento **NO** se valida solo en producción ni solo con un único test de carga global. Se aplica la **misma pirámide** que a las pruebas funcionales, en cada nivel.
+
+| Nivel de pirámide de rendimiento | Tipo de test | Herramienta | Métrica objetivo |
+|----------------------------------|--------------|-------------|-------------------|
+| **Micro / nano** (nivel unit) | Benchmark de un método aislado, comparativo entre implementaciones | **BenchmarkDotNet** | ns/op, allocs, GC pressure |
+| **Componente** | Latencia de un endpoint individual en aislamiento (sin DB compartida, sin concurrencia) | **NBomber** scenarios simples, **k6** simple | p50, p95, p99 por endpoint |
+| **Integración** | Throughput de servicio-a-servicio con dependencias reales (DB, cache, downstream HTTP) | **NBomber** + **Testcontainers** (SQL Server) | RPS sostenible, error rate < 0.1% |
+| **Contrato** | Latencia y SLO por contrato API individual (cada endpoint público) | **NBomber** contract suite, OpenAPI-driven | p95 < SLO contractual documentado |
+| **E2E sistema** | Carga realista simulando journeys completos de usuarios | **k6** / **JMeter** | Concurrencia objetivo (N usuarios), throughput, TTI p95 |
+| **Resiliencia** | Stress (romper límites), spike (picos súbitos), soak (carga sostenida 24h+) | **k6** stress profile, **NBomber** soak | Sin degradación > 10% en p95 después de 1h; sin memory leaks |
+
+**Perfiles de carga requeridos** (en nivel E2E sistema):
+
+- **Smoke**: 1 usuario virtual, 1 minuto — verifica que el escenario corre sin errores.
+- **Load**: N usuarios (target de diseño), 10 minutos — capacidad nominal.
+- **Stress**: 2×N usuarios, 5 minutos — punto de quiebre.
+- **Spike**: 0 → 5×N usuarios en 30s, mantener 2 min — elasticidad.
+- **Soak**: N usuarios, 24h+ — estabilidad y leaks.
+
+**Umbrales de aceptación** (gate de merge y release):
+
+- p95 de endpoints críticos: **< 500 ms** (web), **< 200 ms** (API internas).
+- Error rate bajo carga nominal: **< 0.1%**.
+- Memory growth en soak 24h: **< 10%** sobre baseline.
+- CPU saturación bajo load: **< 75%** promedio, **< 90%** p95.
+
+**Cuándo aplicar**:
+
+- **Micro (BenchmarkDotNet)**: en cada PR que toque un método en `hot path` identificado.
+- **Componente e Integración**: en cada PR que modifique un endpoint o consulta a DB.
+- **Contrato y E2E sistema**: en cada release candidate (no en cada PR por costo).
+- **Resiliencia (soak/stress/spike)**: mensualmente o antes de release mayor.
+
+#### V.5 — Cobertura de código y mutación — gates consolidados
+
+| Gate | Verde | Amarillo | Rojo (bloqueante) |
+|------|:-----:|:--------:|:------------------:|
+| Cobertura de líneas | >= 80% | >= 40% | < 40% |
+| Cobertura de branches | >= 75% | >= 35% | < 35% |
+| Métodos públicos cubiertos | 100% | >= 90% | < 90% |
+| **Mutation score (Stryker.NET)** | >= 80% | >= 70% | < 70% |
+| E2E API happy paths | 100% | >= 90% | < 90% |
+| E2E UI smoke | 100% | >= 80% | < 80% |
+| Contratos Pact verificados | 100% | >= 90% | < 90% |
+| p95 latencia (carga nominal) | < SLO | < 1.2× SLO | >= 1.2× SLO |
+| Error rate bajo load | < 0.1% | < 0.5% | >= 0.5% |
+
+**Skills de referencia**: `crap-analysis` (cobertura + CRAP), `unit-testing-vitest` (estructura de pirámide transferida a .NET).
 
 ---
 
@@ -201,21 +289,30 @@ Para toda funcionalidad de dominio (no UI), el ciclo **ROJO → VERDE → REFACT
 - Features: `NNN-feature-name` con numeración secuencial (gestionada por `speckit.git.feature`).
 - Commits en español o inglés técnico; el agente `speckit.git.commit` aplica formato y (opcional) auto-commit por hook.
 
-**Quality gates antes de fusionar**
+**Quality gates antes de fusionar (alineados con Principio V)**
 
 1. **Build**: `dotnet build` sin errores.
-2. **Tests**: `dotnet test` con todos los tests pasando.
-3. **Cobertura**: >= 40% mínimo (>= 80% target).
-4. **Estático**: 0 errores Roslyn, <= 20 warnings, 0 vulnerabilidades High/Critical NuGet.
-5. **Duplicación**: < 5% según `jscpd`.
-6. **Code review**: al menos 1 aprobación humana usando esta constitución como checklist.
+2. **Tests unitarios (funcionales + técnicas)**: `dotnet test` con todos los tests pasando en `*.Tests.Unit`.
+3. **Tests de componentes Blazor**: `dotnet test` con `bUnit` en `*.Tests.Components`.
+4. **Tests de integración**: `dotnet test` con `WebApplicationFactory` + Testcontainers en `*.Tests.Integration`.
+5. **Tests de contrato (PactNet)**: `pact-broker can-i-deploy` debe devolver **success** contra el Pact Broker del entorno.
+6. **Tests E2E API**: suite `*.Tests.E2E.Api` pasando.
+7. **Tests E2E UI (Playwright)**: smoke + happy paths pasando.
+8. **Tests de mutación (Stryker.NET)**: mutation score **>= 70%** (gate bloqueante) en módulos de dominio y servicios.
+9. **Cobertura**: líneas >= 40% (mínimo), branches >= 35%, métodos públicos 100%.
+10. **Estático**: 0 errores Roslyn, <= 20 warnings, 0 vulnerabilidades High/Critical NuGet.
+11. **Duplicación**: < 5% según `jscpd`.
+12. **Rendimiento (cuando aplique)**: p95 < SLO contractual y error rate < 0.1% en la suite `*.Tests.Performance.Component` o superior.
+13. **Code review**: al menos 1 aprobación humana usando esta constitución como checklist.
 
-Las gates 3–5 las ejecuta automáticamente el agente `/code-quality` (`.github/agents/code-quality.agent.md`). El reporte se publica en `code-quality-report.md` y se adjunta al PR.
+Las gates 9–11 las ejecuta automáticamente el agente `/code-quality` (`.github/agents/code-quality.agent.md`). El reporte se publica en `code-quality-report.md` y se adjunta al PR.
 
 **CI / CD**
 
-- Pipeline ejecuta: `dotnet restore` → `dotnet build` → `dotnet test` → `/code-quality` → build de artefactos.
+- Pipeline por PR ejecuta: `dotnet restore` → `dotnet build` → unit + componentes + integración + E2E API + E2E UI + mutación → `/code-quality` → build de artefactos.
+- Pipeline de release candidate agrega: contratos Pact (verificación con `pact-broker verify`) → performance (k6/NBomber) → build de artefactos.
 - Si cualquier gate falla, el PR NO se puede fusionar.
+- Hot-fixes de seguridad documentan excepción (ver V.1) y DEBEN añadir tests de regresión en el mismo PR.
 
 ---
 
@@ -240,4 +337,4 @@ Las gates 3–5 las ejecuta automáticamente el agente `/code-quality` (`.github
 
 ---
 
-**Version**: 1.0.0 | **Ratified**: 2026-06-12 | **Last Amended**: 2026-06-12
+**Version**: 1.1.0 | **Ratified**: 2026-06-12 | **Last Amended**: 2026-06-12
