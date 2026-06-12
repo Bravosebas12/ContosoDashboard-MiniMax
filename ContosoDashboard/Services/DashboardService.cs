@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using ContosoDashboard.Data;
 using ContosoDashboard.Models;
 using ContosoDashboard.Services.Documents;
@@ -13,7 +15,7 @@ public interface IDashboardService
 
     /// <summary>
     /// Retorna los N documentos más recientes visibles para el usuario (propios + proyectos + shares).
-    /// Usa <see cref="IMemoryCache"/> con TTL de 5 minutos (T121, T124).
+    /// Usa IMemoryCache con TTL de 5 minutos (T121, T124).
     /// </summary>
     Task<List<RecentDocumentDto>> GetRecentDocumentsAsync(int userId, int count = 5);
 
@@ -24,50 +26,65 @@ public interface IDashboardService
     void InvalidateUserDashboardAsync(int userId);
 }
 
+/// <summary>
+/// IMPORTANTE: DashboardService NO inyecta ApplicationDbContext directamente.
+/// En su lugar usa IServiceScopeFactory para crear un scope propio en cada cache factory.
+/// Esto resuelve A6: Blazor prerender invoca OnInitializedAsync dos veces (pre-render +
+/// interactive), lo que causaba que IMemoryCache.GetOrCreateAsync arrancara dos factories
+/// concurrentes usando el mismo ApplicationDbContext scoped -> InvalidOperationException.
+/// </summary>
 public class DashboardService : IDashboardService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IMemoryCache _cache;
+    private readonly ILogger<DashboardService> _logger;
 
-    // Cache keys
     private static string RecentDocsCacheKey(int userId, int count) => $"dashboard:user:{userId}:recentdocs:{count}";
     private static string SummaryCacheKey(int userId) => $"dashboard:user:{userId}:summary";
     private static string CountCacheKey(int userId) => $"dashboard:user:{userId}:count";
 
     private static readonly TimeSpan DashboardCacheTtl = TimeSpan.FromMinutes(5);
 
-    public DashboardService(ApplicationDbContext context, IMemoryCache cache)
+    public DashboardService(
+        IServiceScopeFactory scopeFactory,
+        IMemoryCache cache,
+        ILogger<DashboardService> logger)
     {
-        _context = context;
+        _scopeFactory = scopeFactory;
         _cache = cache;
+        _logger = logger;
     }
 
     public async Task<DashboardSummary> GetDashboardSummaryAsync(int userId)
     {
-        // T124: cache de 5 min para evitar recálculo en cada navegación
         return await _cache.GetOrCreateAsync(SummaryCacheKey(userId), async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = DashboardCacheTtl;
+
+            // Scope propio por factory invocation (A6). Cada cache miss crea su propio
+            // ApplicationDbContext, asi que dos factories concurrentes no colisionan.
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var now = DateTime.UtcNow;
 
             var summary = new DashboardSummary
             {
-                TotalActiveTasks = await _context.Tasks
+                TotalActiveTasks = await db.Tasks
                     .CountAsync(t => t.AssignedUserId == userId && t.Status != Models.TaskStatus.Completed),
 
-                TasksDueToday = await _context.Tasks
+                TasksDueToday = await db.Tasks
                     .CountAsync(t => t.AssignedUserId == userId
                         && t.DueDate.HasValue
                         && t.DueDate.Value.Date == now.Date
                         && t.Status != Models.TaskStatus.Completed),
 
-                ActiveProjects = await _context.Projects
+                ActiveProjects = await db.Projects
                     .Where(p => p.ProjectManagerId == userId || p.ProjectMembers.Any(pm => pm.UserId == userId))
                     .Where(p => p.Status == ProjectStatus.Active)
                     .CountAsync(),
 
-                UnreadNotifications = await _context.Notifications
+                UnreadNotifications = await db.Notifications
                     .CountAsync(n => n.UserId == userId && !n.IsRead),
 
                 TotalDocuments = await GetUserDocumentCountAsync(userId),
@@ -79,9 +96,13 @@ public class DashboardService : IDashboardService
 
     public async Task<List<Announcement>> GetActiveAnnouncementsAsync()
     {
+        // Scope propio por invocacion (no cache - el metodo es read-mostly pero concurrente)
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
         var now = DateTime.UtcNow;
 
-        return await _context.Announcements
+        return await db.Announcements
             .Include(a => a.CreatedByUser)
             .Where(a => a.IsActive
                 && a.PublishDate <= now
@@ -100,17 +121,21 @@ public class DashboardService : IDashboardService
         {
             entry.AbsoluteExpirationRelativeToNow = DashboardCacheTtl;
 
+            // Scope propio por factory invocation (A6)
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
             // Mismo criterio de visibilidad que IDocumentService.ListAsync:
             // propios, de proyectos del usuario, o compartidos activos.
-            var myProjectIds = _context.ProjectMembers
+            var myProjectIds = db.ProjectMembers
                 .Where(pm => pm.UserId == userId)
                 .Select(pm => pm.ProjectId);
-            var mySharedDocIds = _context.DocumentShares
+            var mySharedDocIds = db.DocumentShares
                 .Where(s => s.SharedWithUserId == userId && s.RevokedAt == null
                     && (s.ExpiresAt == null || s.ExpiresAt > DateTime.UtcNow))
                 .Select(s => s.DocumentId);
 
-            var docs = await _context.Documents.AsNoTracking()
+            var docs = await db.Documents.AsNoTracking()
                 .Where(d => d.UploadedByUserId == userId
                     || (d.ProjectId != null && myProjectIds.Contains(d.ProjectId.Value))
                     || mySharedDocIds.Contains(d.DocumentId))
@@ -132,20 +157,23 @@ public class DashboardService : IDashboardService
 
     public async Task<int> GetUserDocumentCountAsync(int userId)
     {
-        // El conteo de documentos también puede ser costoso con 10k+ docs, así que lo cacheamos.
         return await _cache.GetOrCreateAsync(CountCacheKey(userId), async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = DashboardCacheTtl;
 
-            var myProjectIds = _context.ProjectMembers
+            // Scope propio por factory invocation (A6)
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var myProjectIds = db.ProjectMembers
                 .Where(pm => pm.UserId == userId)
                 .Select(pm => pm.ProjectId);
-            var mySharedDocIds = _context.DocumentShares
+            var mySharedDocIds = db.DocumentShares
                 .Where(s => s.SharedWithUserId == userId && s.RevokedAt == null
                     && (s.ExpiresAt == null || s.ExpiresAt > DateTime.UtcNow))
                 .Select(s => s.DocumentId);
 
-            return await _context.Documents.AsNoTracking()
+            return await db.Documents.AsNoTracking()
                 .Where(d => d.UploadedByUserId == userId
                     || (d.ProjectId != null && myProjectIds.Contains(d.ProjectId.Value))
                     || mySharedDocIds.Contains(d.DocumentId))
@@ -156,7 +184,7 @@ public class DashboardService : IDashboardService
     public void InvalidateUserDashboardAsync(int userId)
     {
         // T124: tras un upload/delete, se invalidan todas las claves cacheadas del dashboard del usuario.
-        // El próximo render consultará DB y repoblará el cache.
+        // El proximo render consultara DB y repoblara el cache.
         _cache.Remove(SummaryCacheKey(userId));
         _cache.Remove(CountCacheKey(userId));
         for (int c = 1; c <= 25; c++)
@@ -167,7 +195,7 @@ public class DashboardService : IDashboardService
 }
 
 /// <summary>
-/// Resumen del dashboard del usuario. Ver <see cref="IDashboardService.GetDashboardSummaryAsync"/>.
+/// Resumen del dashboard del usuario. Ver IDashboardService.GetDashboardSummaryAsync.
 /// </summary>
 public class DashboardSummary
 {
@@ -175,7 +203,6 @@ public class DashboardSummary
     public int TasksDueToday { get; set; }
     public int ActiveProjects { get; set; }
     public int UnreadNotifications { get; set; }
-    /// <summary>Total de documentos visibles para el usuario (T123).</summary>
     public int TotalDocuments { get; set; }
 }
 
