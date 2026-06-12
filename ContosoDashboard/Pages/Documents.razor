@@ -1,0 +1,118 @@
+@* Página principal de "Mis Documentos" — listado + upload. Ver FR-013, FR-014. *@
+@page "/documents"
+@attribute [Authorize(Policy = "Employee")]
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@using ContosoDashboard.Models
+@using ContosoDashboard.Services.Documents
+@inject IDocumentService DocumentService
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>Mis Documentos</PageTitle>
+
+<div class="container mt-4">
+    <h1>Mis Documentos</h1>
+
+    <DocumentUploadComponent OnUploaded="HandleUploaded" />
+
+    @if (_documents == null)
+    {
+        <p><em>Cargando...</em></p>
+    }
+    else if (_documents.Items.Count == 0)
+    {
+        <div class="alert alert-info">No tienes documentos todavía. Sube el primero arriba.</div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th @onclick="() => SortBy(DocumentSortBy.Title)" style="cursor:pointer">Título @SortIndicator(DocumentSortBy.Title)</th>
+                            <th>Categoría</th>
+                            <th>Tamaño</th>
+                            <th>Tipo</th>
+                            <th @onclick="() => SortBy(DocumentSortBy.UploadedAt)" style="cursor:pointer">Subido @SortIndicator(DocumentSortBy.UploadedAt)</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var d in _documents.Items)
+                        {
+                            <tr>
+                                <td>@d.Title</td>
+                                <td><span class="badge bg-secondary">@d.Category</span></td>
+                                <td>@((d.FileSize / 1024.0).ToString("N1")) KB</td>
+                                <td><small>@d.FileType</small></td>
+                                <td>@d.UploadedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => Download(d.DocumentId)">Descargar</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <nav>
+                    <ul class="pagination">
+                        <li class="page-item @(_documents.HasPrevious ? "" : "disabled")">
+                            <button class="page-link" @onclick="PrevPage">Anterior</button>
+                        </li>
+                        <li class="page-item active"><span class="page-link">@_documents.Page / @_documents.TotalPages</span></li>
+                        <li class="page-item @(_documents.HasNext ? "" : "disabled")">
+                            <button class="page-link" @onclick="NextPage">Siguiente</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private PagedResult<DocumentDto>? _documents;
+    private int _currentPage = 1;
+    private DocumentSortBy _sortBy = DocumentSortBy.UploadedAt;
+    private SortDirection _sortDir = SortDirection.Desc;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        var userId = ExtractUserId(auth.User);
+        if (userId == 0) return;
+
+        _documents = await DocumentService.ListAsync(
+            new DocumentListFilter(UploadedByUserId: userId),
+            _sortBy, _sortDir, _currentPage, 25, userId, default);
+    }
+
+    private async Task HandleUploaded(DocumentDto _)
+    {
+        _currentPage = 1;
+        await LoadAsync();
+    }
+
+    private async Task SortBy(DocumentSortBy by)
+    {
+        if (_sortBy == by) _sortDir = _sortDir == SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc;
+        else { _sortBy = by; _sortDir = SortDirection.Asc; }
+        await LoadAsync();
+    }
+
+    private string SortIndicator(DocumentSortBy by) => _sortBy == by ? (_sortDir == SortDirection.Asc ? " ▲" : " ▼") : "";
+
+    private async Task PrevPage() { if (_documents?.HasPrevious == true) { _currentPage--; await LoadAsync(); } }
+    private async Task NextPage() { if (_documents?.HasNext == true) { _currentPage++; await LoadAsync(); } }
+
+    private void Download(int id) => Nav.NavigateTo($"/documents/download/{id}", forceLoad: false);
+
+    private static int ExtractUserId(ClaimsPrincipal user)
+    {
+        var nameId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(nameId, out var id) ? id : 0;
+    }
+}

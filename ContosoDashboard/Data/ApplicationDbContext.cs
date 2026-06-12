@@ -18,6 +18,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProjectMember> ProjectMembers { get; set; } = null!;
     public DbSet<Announcement> Announcements { get; set; } = null!;
 
+    // Document management (Feature 001-documents-management)
+    public DbSet<Document> Documents { get; set; } = null!;
+    public DbSet<DocumentShare> DocumentShares { get; set; } = null!;
+    public DbSet<ActivityLog> ActivityLogs { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -63,6 +68,94 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
+
+        // ====== Document feature configuration (T020) ======
+
+        // Document entity
+        modelBuilder.Entity<Document>(entity =>
+        {
+            entity.HasKey(d => d.DocumentId);
+            entity.Property(d => d.Title).HasMaxLength(200).IsRequired();
+            entity.Property(d => d.Description).HasMaxLength(2000);
+            entity.Property(d => d.Category).HasMaxLength(50).IsRequired();
+            entity.Property(d => d.FilePath).HasMaxLength(500).IsRequired();
+            entity.Property(d => d.FileType).HasMaxLength(255).IsRequired();
+            entity.Property(d => d.Tags).HasMaxLength(500);
+            entity.Property(d => d.OriginalFileName).HasMaxLength(255).IsRequired();
+            entity.Property(d => d.UploadedByUserId).IsRequired();
+            entity.Property(d => d.AvThreatName).HasMaxLength(255);
+            entity.Property(d => d.AvScanStatus).HasConversion<int>();
+
+            // Indexes (per data-model.md)
+            entity.HasIndex(d => d.FilePath).IsUnique();
+            entity.HasIndex(d => d.UploadedByUserId);
+            entity.HasIndex(d => d.ProjectId);
+            entity.HasIndex(d => d.Category);
+            entity.HasIndex(d => d.FileType);
+            entity.HasIndex(d => new { d.UploadedAt, d.DocumentId });
+
+            // Relationships
+            entity.HasOne(d => d.UploadedByUser)
+                  .WithMany()
+                  .HasForeignKey(d => d.UploadedByUserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.Project)
+                  .WithMany()
+                  .HasForeignKey(d => d.ProjectId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // DocumentShare entity
+        modelBuilder.Entity<DocumentShare>(entity =>
+        {
+            entity.HasKey(s => s.DocumentShareId);
+            entity.Property(s => s.SharedWithRole).HasMaxLength(50);
+            entity.Property(s => s.Permission).HasConversion<int>();
+
+            entity.HasIndex(s => s.DocumentId);
+            entity.HasIndex(s => s.SharedWithUserId);
+
+            entity.HasOne(s => s.Document)
+                  .WithMany(d => d.DocumentShares)
+                  .HasForeignKey(s => s.DocumentId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(s => s.SharedWithUser)
+                  .WithMany()
+                  .HasForeignKey(s => s.SharedWithUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(s => s.SharedByUser)
+                  .WithMany()
+                  .HasForeignKey(s => s.SharedByUserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ActivityLog entity
+        modelBuilder.Entity<ActivityLog>(entity =>
+        {
+            entity.HasKey(l => l.ActivityLogId);
+            entity.Property(l => l.Event).HasMaxLength(50).IsRequired();
+            entity.Property(l => l.IpAddress).HasMaxLength(45);
+            entity.Property(l => l.Metadata).HasMaxLength(2000);
+
+            entity.HasIndex(l => l.Timestamp).IsDescending();
+            entity.HasIndex(l => l.DocumentId);
+            entity.HasIndex(l => l.UserId);
+            entity.HasIndex(l => l.Event);
+
+            // RESTRICT on Document — preserve audit log even if doc is deleted
+            entity.HasOne(l => l.Document)
+                  .WithMany()
+                  .HasForeignKey(l => l.DocumentId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(l => l.User)
+                  .WithMany()
+                  .HasForeignKey(l => l.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
 
         // Seed initial data
         SeedData(modelBuilder);
