@@ -109,10 +109,10 @@
     private static string FormatRelativeTime(DateTime dateTime)
     {
         var timeSpan = DateTime.UtcNow - dateTime;
-        if (timeSpan.TotalMinutes < 1) return "hace instantes";
-        if (timeSpan.TotalMinutes < 60) return $"hace {(int)timeSpan.TotalMinutes} min";
-        if (timeSpan.TotalHours < 24) return $"hace {(int)timeSpan.TotalHours} h";
-        if (timeSpan.TotalDays < 7) return $"hace {(int)timeSpan.TotalDays} d";
+        if (timeSpan.TotalMinutes < 1) return "just now";
+        if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes} min ago";
+        if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours} h ago";
+        if (timeSpan.TotalDays < 7) return $"{(int)timeSpan.TotalDays} d ago";
         return dateTime.ToString("MMM dd");
     }
 }

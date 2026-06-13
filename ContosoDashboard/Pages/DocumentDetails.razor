@@ -413,7 +413,7 @@
         }
         catch (InvalidOperationException ex) { _errorMessage = ex.Message; }
         catch (ContosoDashboard.Services.Documents.DocumentUnauthorizedAccessException ex) { _errorMessage = ex.Message; }
-        catch (Exception ex) { _errorMessage = $"Error al compartir: {ex.Message}"; }
+        catch (Exception ex) { _errorMessage = $"Error sharing: {ex.Message}"; }
     }
 
     private async Task RevokeShareAsync(int documentShareId)
@@ -423,10 +423,10 @@
         try
         {
             await ShareService.RevokeAsync(documentShareId, _currentUserId);
-            _errorMessage = "Acceso revocado.";
+            _errorMessage = "Access revoked.";
             await LoadActiveSharesAsync();
         }
-        catch (Exception ex) { _errorMessage = $"Error al revocar: {ex.Message}"; }
+        catch (Exception ex) { _errorMessage = $"Error revoking: {ex.Message}"; }
     }
 
     [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
