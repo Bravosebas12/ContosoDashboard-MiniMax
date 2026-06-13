@@ -112,18 +112,18 @@
 
 ### Tests para User Story 2
 
-- [ ] T055 [P] [US2] Extender `tests/ContosoDashboard.Tests.Unit/Services/DocumentServiceTests.cs` con tests de `UploadAsync` cuando `projectId` se especifica (autorización: usuario debe ser miembro o PM del proyecto)
-- [ ] T056 [P] [US2] Crear `tests/ContosoDashboard.Tests.Integration/ProjectDocumentUploadTests.cs` — flow completo: PM sube → team member descarga → no-member recibe 403
-- [ ] T057 [P] [US2] Crear `tests/ContosoDashboard.Tests.Unit/Services/DocumentServiceTests.cs` con tests de notificación a project members tras upload (mock `INotificationService`)
+- [x] T055 [P] [US2] Extender `tests/ContosoDashboard.Tests.Unit/Services/DocumentServiceTests.cs` con tests de `UploadAsync` cuando `projectId` se especifica (autorización: usuario debe ser miembro o PM del proyecto)
+- [x] T056 [P] [US2] Crear `tests/ContosoDashboard.Tests.Integration/ProjectDocumentUploadTests.cs` — flow completo: PM sube → team member descarga → no-member recibe 403
+- [x] T057 [P] [US2] Crear `tests/ContosoDashboard.Tests.Unit/Services/DocumentServiceTests.cs` con tests de notificación a project members tras upload (mock `INotificationService`)
 
 ### Implementación para User Story 2
 
 - [ ] T058 [US2] Extender `DocumentService.UploadAsync` para aceptar `projectId` opcional; añadir validación: si `projectId != null`, verificar que `currentUserId` es miembro del proyecto OR es el PM (defense in depth layer 2)
 - [ ] T059 [US2] Extender `DocumentService.UploadAsync` para enviar notificación in-app a todos los team members del proyecto via `INotificationService` (latencia ≤ 5s, ver AC-4.3.1)
-- [ ] T060 [US2] Crear `ContosoDashboard/Pages/Projects/{id}.razor` (si no existe) o extender para mostrar la sección "Documentos del proyecto" con lista + botón "Subir documento"
-- [ ] T061 [US2] Crear `ContosoDashboard/Pages/Projects/{id}.razor.cs` con `OnInitializedAsync` que carga documentos del proyecto via `IDocumentService.ListAsync(projectId: id)`
-- [ ] T062 [US2] Agregar `DocumentUploadComponent` en `Projects/{id}.razor` con `projectId` pre-seleccionado y deshabilitado
-- [ ] T063 [US2] Verificar que un usuario NO asignado al proyecto recibe 403 al intentar acceder a `Pages/Projects/{id}.razor` (test de autorización)
+- [x] T060 [US2] Crear `ContosoDashboard/Pages/Projects/{id}.razor` (si no existe) o extender para mostrar la sección "Documentos del proyecto" con lista + botón "Subir documento"
+- [x] T061 [US2] Crear `ContosoDashboard/Pages/Projects/{id}.razor.cs` con `OnInitializedAsync` que carga documentos del proyecto via `IDocumentService.ListAsync(projectId: id)`
+- [x] T062 [US2] Agregar `DocumentUploadComponent` en `Projects/{id}.razor` con `projectId` pre-seleccionado y deshabilitado
+- [x] T063 [US2] Verificar que un usuario NO asignado al proyecto recibe 403 al intentar acceder a `Pages/Projects/{id}.razor` (test de autorización)
 - [ ] T064 [US2] Verificar US2 con todos los niveles de tests (unit, component, integration, contract, E2E API) y coverage ≥ 80% en la nueva lógica
 
 **Checkpoint**: US1 + US2 funcionan independientemente. PMs y Team Leads pueden subir a proyectos con notificaciones.
@@ -138,17 +138,17 @@
 
 ### Tests para User Story 3
 
-- [ ] T065 [P] [US3] Extender `DocumentServiceTests.cs` con tests de `ListAsync` (filtros combinados, ordenamiento, paginación) y `SearchAsync` (LIKE-based, ≤ 2s p95)
+- [x] T065 [P] [US3] Extender `DocumentServiceTests.cs` con tests de `ListAsync` (filtros combinados, ordenamiento, paginación) y `SearchAsync` (LIKE-based, ≤ 2s p95)
 - [ ] T066 [P] [US3] Crear `tests/ContosoDashboard.Tests.Integration/DocumentSearchPerformanceTests.cs` — 10k documentos seed, medir p95 < 2s con `Stopwatch`
 
 ### Implementación para User Story 3
 
 - [ ] T067 [US3] Implementar `DocumentService.ListAsync` con LINQ + `AsNoTracking()` + paginación `Skip/Take` + filtros opcionales + ordenamiento configurable
 - [ ] T068 [US3] Implementar `DocumentService.SearchAsync` con `WHERE Title LIKE '%q%' OR Description LIKE '%q%' OR Tags LIKE '%q%'` + filtro de autorización (solo docs visibles)
-- [ ] T069 [US3] Agregar barra de búsqueda en `Pages/Documents.razor` que invoca `IDocumentService.SearchAsync`
-- [ ] T070 [US3] Agregar controles de filtro (categoría dropdown, proyecto dropdown, date range picker) en `Pages/Documents.razor`
-- [ ] T071 [US3] Agregar controles de ordenamiento (por título, fecha, categoría, tamaño) en `Pages/Documents.razor`
-- [ ] T072 [US3] Implementar selector de página (1, 2, 3, ...) con `PagedResult<T>.TotalPages`
+- [x] T069 [US3] Agregar barra de búsqueda en `Pages/Documents.razor` que invoca `IDocumentService.SearchAsync`
+- [x] T070 [US3] Agregar controles de filtro (categoría dropdown, proyecto dropdown, date range picker) en `Pages/Documents.razor`
+- [x] T071 [US3] Agregar controles de ordenamiento (por título, fecha, categoría, tamaño) en `Pages/Documents.razor`
+- [x] T072 [US3] Implementar selector de página (1, 2, 3, ...) con `PagedResult<T>.TotalPages`
 - [ ] T073 [US3] Verificar que los 30 documentos seed se listan en ≤ 500 ms p95 (integración con `BenchmarkDotNet` o `Stopwatch`)
 
 **Checkpoint**: Búsqueda y filtrado funcionan, cumplen SLOs de performance.
@@ -199,8 +199,8 @@
 
 - [ ] T089 [US5] Implementar `DocumentService.UpdateMetadataAsync` con validación: solo el dueño (`UploadedByUserId == currentUserId`) puede editar
 - [ ] T090 [US5] Implementar `DocumentService.ReplaceFileAsync` con flujo: validar dueño → AV scan → generar nuevo GUID → escribir nuevo archivo → actualizar `FilePath` y `ReplacedAt` en DB → eliminar archivo antiguo del disco → log `document.replaced`
-- [ ] T091 [US5] Agregar formulario de edición de metadata en `Pages/DocumentDetails.razor` (campos editables: title, description, category, tags)
-- [ ] T092 [US5] Agregar UI de "Reemplazar archivo" en `Pages/DocumentDetails.razor` con `<InputFile>` y confirmación
+- [x] T091 [US5] Agregar formulario de edición de metadata en `Pages/DocumentDetails.razor` (campos editables: title, description, category, tags)
+- [x] T092 [US5] Agregar UI de "Reemplazar archivo" en `Pages/DocumentDetails.razor` con `<InputFile>` y confirmación
 - [ ] T093 [US5] Verificar que la nueva versión se sirve en próximas descargas (test de integración: download tras replace retorna nuevo archivo)
 - [ ] T094 [US5] Verificar que downloads en curso durante replace completan con archivo antiguo (test concurrente, sin locks)
 
@@ -216,8 +216,8 @@
 
 ### Tests para User Story 6
 
-- [ ] T095 [P] [US6] Crear `tests/ContosoDashboard.Tests.Unit/Services/DocumentShareServiceTests.cs` con tests de las 3 reglas de sharing (owner → anyone, PM → within project, other → 403) per Clarifications Q1
-- [ ] T096 [P] [US6] Crear `tests/ContosoDashboard.Tests.Integration/ShareFlowTests.cs` con happy path + 403 + notificación verificada
+- [x] T095 [P] [US6] Crear `tests/ContosoDashboard.Tests.Unit/Services/DocumentShareServiceTests.cs` con tests de las 3 reglas de sharing (owner → anyone, PM → within project, other → 403) per Clarifications Q1
+- [x] T096 [P] [US6] Crear `tests/ContosoDashboard.Tests.Integration/ShareFlowTests.cs` con happy path + 403 + notificación verificada
 
 ### Implementación para User Story 6
 
@@ -247,8 +247,8 @@
 
 ### Tests para User Story 7
 
-- [ ] T107 [P] [US7] Extender `DocumentServiceTests.cs` con tests de `DeleteAsync` (autorización: dueño OR PM; cascade; rollback en fallo)
-- [ ] T108 [P] [US7] Crear `tests/ContosoDashboard.Tests.Integration/DocumentDeleteTests.cs` — happy path + 403 + cascade verification
+- [x] T107 [P] [US7] Extender `DocumentServiceTests.cs` con tests de `DeleteAsync` (autorización: dueño OR PM; cascade; rollback en fallo)
+- [x] T108 [P] [US7] Crear `tests/ContosoDashboard.Tests.Integration/DocumentDeleteTests.cs` — happy path + 403 + cascade verification
 
 ### Implementación para User Story 7
 
@@ -271,8 +271,8 @@
 
 ### Tests para User Story 8
 
-- [ ] T115 [P] [US8] Crear `tests/ContosoDashboard.Tests.Unit/Services/DocumentServiceTests.cs` con tests de upload con `taskId` (snapshot de `ProjectId` del task)
-- [ ] T116 [P] [US8] Crear `tests/ContosoDashboard.Tests.Integration/DocumentAttachmentToTaskTests.cs` — attach → verific ProjectId
+- [x] T115 [P] [US8] Crear `tests/ContosoDashboard.Tests.Unit/Services/DocumentServiceTests.cs` con tests de upload con `taskId` (snapshot de `ProjectId` del task)
+- [x] T116 [P] [US8] Crear `tests/ContosoDashboard.Tests.Integration/DocumentAttachmentToTaskTests.cs` — attach → verific ProjectId
 
 ### Implementación para User Story 8
 

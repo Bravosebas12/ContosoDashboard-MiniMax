@@ -244,6 +244,198 @@ k6/                                            (🆕 scripts de carga)
 - **CDN / cache distribuido**: cuando se migre a producción, considerar Azure CDN con signed URLs.
 - **Full-text search nativo vs LINQ**: empezar con `LIKE` optimizado + índices; si el SLA no se cumple con 10k docs, migrar a SQL Server Full-Text Search o ElasticSearch.
 
+---
+
+## Discovered Issues & Remediation Plan (Post-Implementation Review — v1.0.1)
+
+> **Context**: After v1.0.0 implementation (`T041`-`T140`), two UX issues were identified via manual testing and user feedback on 2026-06-12:
+> 1. **Preview button triggers a download** instead of inline visualization.
+> 2. **Delete confirmation modal** lacks clarity (English text in a Spanish app, missing file type/filename context, no type-to-confirm safeguard).
+>
+> This section is a **read-only analysis** — no production code is modified in this iteration. The proposed remediation tasks (`T141`-`T153`) will be planned in a future `/speckit.tasks` regeneration cycle.
+
+### Issue 1 — Preview triggers download instead of rendering inline
+
+**Symptom (user-reported)**:
+- User clicks the **"👁 Preview in a new tab"** button in `DocumentDetails.razor:121` (a `<a href="/DocumentFiles/Preview?id=..." target="_blank">`).
+- The new tab opens; instead of showing the PDF inline, the browser **downloads** the file (`*.pdf` lands in `~/Downloads`).
+- The embedded `<iframe>` in `DocumentPreviewComponent.razor:35` also fails to render the PDF.
+
+**Affected acceptance criteria**:
+- **AC-3.1.2** (StakeholderDoc §8): *"Given a 2 MB PDF, When the user clicks 'Vista previa', Then it renders in an `<iframe>` inline in ≤ 3s"*
+- **AC-3.1.3** (StakeholderDoc §8): *"Given a `.docx` file, When the user clicks 'Vista previa', Then shows 'Vista previa no disponible para este tipo de archivo' + 'Descargar' button"*
+- **FR-019** (spec): *"System MUST allow inline preview of PDFs and images (JPEG, PNG) in an embedded viewer, for files ≤ 10 MB"*
+
+**Root cause analysis**:
+
+| # | Cause | Evidence | Severity |
+|---|---|---|:---:|
+| 1.1 | **`X-Frame-Options: DENY` is set globally** in `Program.cs:108` for ALL responses, including `/DocumentFiles/Preview`. This prevents the PDF response from being framed by **any** parent (including same-origin). The browser blocks the `<iframe>` and falls back to download behavior. | `Program.cs` middleware, line 108: `context.Response.Headers["X-Frame-Options"] = "DENY";` | **HIGH** |
+| 1.2 | **CSP lacks `frame-src` and `object-src` directives**. The current CSP (`Program.cs:113-119`) relies on `default-src 'self'`, which is brittle across browsers. Some browsers treat absent `frame-src` as `default-src`, but Chrome may require an explicit declaration. | `Program.cs`, lines 113-119 | MEDIUM |
+| 1.3 | The `<iframe>` in `DocumentPreviewComponent.razor:35` uses `sandbox="allow-same-origin"`. Combined with the global `X-Frame-Options: DENY`, the iframe is fully blocked. The author of `Preview.cshtml.cs:25-27` flagged this in a code comment but did not fix it. | `Shared/DocumentPreviewComponent.razor:35` | HIGH |
+| 1.4 | The "Preview in a new tab" button is `<a href="/DocumentFiles/Preview?id=..." target="_blank">` (`DocumentDetails.razor:121`). When opened in a new tab, the browser only honors `Content-Disposition: inline` if the user has a PDF viewer enabled. Chrome with "Download PDFs instead of automatically opening them in Chrome" set will download the file regardless of our headers. | `DocumentDetails.razor:121` | MEDIUM |
+| 1.5 | The fallback message in `DocumentPreviewComponent.razor:15-19` is in **English** ("Preview not available for this file type..."), conflicting with **Constitution §Restricciones Adicionales** ("la interfaz de usuario DEBE estar en español"). | `Shared/DocumentPreviewComponent.razor:15-19` | LOW |
+| 1.6 | **No automated test** verifies that `/DocumentFiles/Preview` returns `Content-Disposition: inline` and renders correctly. The Phase 1 tests (unit, integration, E2E) are blocked and were not built. | tasks.md T127, T135 (both `[ ]`) | MEDIUM |
+
+**Recommended fix (proposed, not yet applied)**:
+
+| Sub-fix | Description | Affected file(s) |
+|---|---|---|
+| 1.A | Change global `X-Frame-Options` from `DENY` to `SAMEORIGIN` in the middleware. This still prevents clickjacking from external sites but allows same-origin framing. | `Program.cs:108` |
+| 1.B | As a defense-in-depth measure, explicitly set `X-Frame-Options: SAMEORIGIN` on the `/DocumentFiles/Preview` response (so the policy is co-located with the endpoint that needs it). | `Pages/DocumentFiles/Preview.cshtml.cs:OnGetAsync` |
+| 1.C | Add `frame-src 'self'` and `object-src 'self'` to the CSP for explicitness. | `Program.cs:113-119` |
+| 1.D | Remove `sandbox="allow-same-origin"` from the `<iframe>` (no longer needed with `SAMEORIGIN`). | `Shared/DocumentPreviewComponent.razor:35` |
+| 1.E | Switch PDF rendering from `<iframe>` to `<embed type="application/pdf" src="...">` (more reliable inline rendering across browsers, including older Chrome versions). Keep `<img>` for JPEG/PNG. | `Shared/DocumentPreviewComponent.razor` |
+| 1.F | Add a user-facing note: "Si tu navegador descarga el PDF en lugar de mostrarlo, habilita el visor PDF integrado en la configuración de tu navegador." (Per browser behavior we cannot fully control.) | `Shared/DocumentPreviewComponent.razor` |
+| 1.G | Localize all fallback messages in `DocumentPreviewComponent.razor` to Spanish. | `Shared/DocumentPreviewComponent.razor` |
+| 1.H | Write a Playwright E2E test that asserts the response of `/DocumentFiles/Preview?id=X` has `Content-Disposition: inline` (NOT `attachment`) and `Content-Type: application/pdf`. | `tests/ContosoDashboard.Tests.E2E.UI/` (new, blocked by Phase 1) |
+
+**New tasks to add (proposed, pending `/speckit.tasks` regeneration)**:
+
+| ID | Priority | Story | Description |
+|---|:---:|---|---|
+| T141 | P1 | [UX-FIX] | Cambiar `X-Frame-Options: DENY` → `SAMEORIGIN` en middleware global de `Program.cs` (Fix 1.A) |
+| T142 | P1 | [UX-FIX] | Set `X-Frame-Options: SAMEORIGIN` explícitamente en `Pages/DocumentFiles/Preview.cshtml.cs` (Fix 1.B) |
+| T143 | P1 | [UX-FIX] | Agregar `frame-src 'self'` y `object-src 'self'` al CSP global en `Program.cs` (Fix 1.C) |
+| T144 | P1 | [UX-FIX] | Quitar `sandbox="allow-same-origin"` del `<iframe>` en `DocumentPreviewComponent.razor` (Fix 1.D) |
+| T145 | P2 | [UX-FIX] | Refactor `DocumentPreviewComponent.razor` para usar `<embed type="application/pdf">` para PDFs y `<img>` para JPEG/PNG (Fix 1.E) |
+| T146 | P2 | [UX-FIX] | Localizar mensajes de fallback al español en `DocumentPreviewComponent.razor` (Fix 1.G) |
+| T147 | P2 | [UX-FIX] | Agregar nota visible al usuario sobre configuración del visor PDF del navegador (Fix 1.F) |
+| T148 | P3 | [UX-FIX] | Crear test E2E Playwright que valide `Content-Disposition: inline` en `/DocumentFiles/Preview` (Fix 1.H) — **bloqueado por Phase 1** |
+
+### Issue 2 — Delete confirmation modal has unclear wording and exposes a raw value
+
+**Clarification from product owner (2026-06-12)**:
+- The modal text **must stay in English** (this is the agreed language for destructive-action modals in this product). The previous v1.0.1 analysis incorrectly flagged a "Constitution §Localización violation" — that finding is **withdrawn**.
+- The real issues are: (a) the wording inside the modal is **grammatically awkward and contains technical jargon** ("audit log", "(cascade)", "without document reference") that an end user cannot parse; and (b) the modal shows a **raw value** that looks like code instead of a human-friendly identifier.
+
+**Symptom (user-reported)**:
+- User clicks the **"🗑 Delete"** button in `DocumentDetails.razor:131` (visible only to owner).
+- Modal opens with the title "⚠ Confirm deletion".
+- The body shows: `Permanently delete the document "Title"?`
+- If the document's `Title` field was set to something code-like (e.g., a GUID, a UUID, an auto-generated string from another system, or the original filename when the user did not provide a friendly title), the user sees what looks like a **code value** quoted inside the sentence — and cannot tell *what* they are about to delete.
+- The three bullet points below use jargon that a non-technical user does not understand.
+
+**Current modal content (from `Shared/DeleteConfirmDialog.razor`)**:
+
+```text
+⚠ Confirm deletion
+Permanently delete the document "Title"?
+This action cannot be undone.
+- The file will be deleted from disk.
+- All associated active shares will be removed (cascade).
+- The audit log is preserved (without document reference).
+[ Cancel ]  [ 🗑 Delete permanently ]
+```
+
+**Affected acceptance criteria**:
+- **AC-3.3.1** (StakeholderDoc §8): *"Given an owner, When clicks 'Eliminar' and confirms, Then the file is deleted from disk in ≤ 100 ms and the row is deleted (cascade `DocumentShare`)"*
+- **FR-022** (spec): *"System MUST permanently delete the file from disk in ≤ 100 ms after user confirmation"*
+- **Constitution Principio II (A08 Data Integrity)**: high-impact destructive actions should have additional safeguards.
+
+**Root cause analysis**:
+
+| # | Cause | Evidence | Severity |
+|---|---|---|:---:|
+| 2.1 | **Grammar is awkward**. The sentence "Permanently delete the document 'X'?" is a bare imperative without an explicit subject or softening ("Are you sure…?"). A clearer phrasing would lead with the question and the consequence, not the action. | `DeleteConfirmDialog.razor:14` | **HIGH** |
+| 2.2 | **Technical jargon in bullets** that an end user cannot parse: (a) "(cascade)" — database terminology, (b) "audit log" — engineering term, (c) "without document reference" — implementation detail about FK nulling. None of these are user-facing concepts. | `DeleteConfirmDialog.razor:18-20` | **HIGH** |
+| 2.3 | **A raw "code-looking" value is displayed as the document identifier.** The only identifier the modal currently shows is `@Title` (the document's `Title` field). When the title is a GUID, a UUID, an upload timestamp, or the original filename of a file the user never renamed, the user sees what looks like a code value quoted in the question and cannot recognize the document. | `DeleteConfirmDialog.razor:14` + caller in `DocumentDetails.razor:198` passes `Title="@(_doc?.Title ?? string.Empty)"` | **HIGH** |
+| 2.4 | **No type-to-confirm safeguard.** A single mis-click permanently destroys the file. NIST SP 800-63B and OWASP ASVS recommend a second confirmation for destructive actions. | N/A — absent by design | MEDIUM |
+| 2.5 | The visual hierarchy of destructive intent is weak. "Delete permanently" is `btn-danger` (red) but is the same size as "Cancel", and the modal header is `bg-danger` but the body is white — the destructive context doesn't extend through the whole modal. | `DeleteConfirmDialog.razor:9, 36` | LOW |
+| 2.6 | The error message (`@ErrorMessage`) appears at the **bottom of the modal body** with no icon. If the user dismisses the modal before scrolling, they may miss the failure. | `DeleteConfirmDialog.razor:24-27` | LOW |
+| 2.7 | **No automated test** covers the dialog (bUnit). The Phase 1 component tests are blocked and were not built. | tasks.md T126 (blocked) | MEDIUM |
+
+**Recommended fix (proposed, not yet applied)**:
+
+| Sub-fix | Description | Affected file(s) |
+|---|---|---|
+| 2.A | **Rewrite the modal wording in plain English**, keeping the language as English (per product-owner decision). Use a question-led structure and replace every jargon term. | `Shared/DeleteConfirmDialog.razor` |
+| 2.B | **Replace the single `@Title` value with a richer document identifier** that never looks like raw code. Show the **original filename** (`_doc.OriginalFileName`) and the **friendly title** in a stacked layout: friendly title (large) + `📄 original-filename.pdf · PDF · 47.9 KB` (small, muted). If `Title` looks like a code value (e.g., matches a GUID pattern), prefer the `OriginalFileName` as the primary identifier and show the title in muted text. | `Shared/DeleteConfirmDialog.razor` (new parameters), `Pages/DocumentDetails.razor:198` (caller passes new params) |
+| 2.C | **Drop jargon from the bullets**. Proposed plain-English bullets: "The original file will be removed from the server's disk.", "Any users you've shared this document with will lose access immediately.", "An entry will be kept in the system activity log for compliance." | `Shared/DeleteConfirmDialog.razor:18-20` |
+| 2.D | Add a **type-to-confirm** field: the user must type the document's friendly title (or a fixed phrase like `DELETE`) in a textbox before the "Delete permanently" button is enabled. Pattern: `input` + `disabled` binding. | `Shared/DeleteConfirmDialog.razor` |
+| 2.E | Improve the visual hierarchy: (a) keep the destructive red header, (b) add a larger 🚨 icon to the title, (c) make the destructive button slightly larger or use `btn-lg`. | `Shared/DeleteConfirmDialog.razor` |
+| 2.F | Move the error message to the **top of the modal body** (above the title) with an alert icon. Use `aria-live="assertive"` for screen reader announcements. | `Shared/DeleteConfirmDialog.razor` |
+| 2.G | Write bUnit component tests that verify: (a) the new plain-English wording, (b) the original filename is rendered, (c) the document title is not displayed alone when it looks like a code value, (d) type-to-confirm enables/disables the button, (e) Cancel and Confirm callbacks are invoked correctly, (f) error message is announced via `aria-live`. | `tests/ContosoDashboard.Tests.Components/DeleteConfirmDialogTests.cs` (new, blocked by Phase 1) |
+
+**Proposed new wording for the modal body (English, jargon-free)**:
+
+```text
+⚠ Confirm deletion
+
+Are you sure you want to permanently delete this document?
+
+    Q4 Roadmap
+    📄 roadmap-q4.pdf · PDF · 2.3 MB
+
+This action cannot be undone.
+
+  • The original file will be removed from the server's disk.
+  • Anyone you've shared this document with will lose access
+    immediately.
+  • An entry will be kept in the system activity log for
+    compliance purposes.
+
+To confirm, type the document title below:
+
+    [ Roadmap                          ]
+
+[ Cancel ]  [ 🗑 Delete permanently ]   (disabled until the
+                                          typed value matches)
+```
+
+**New tasks to add (proposed, pending `/speckit.tasks` regeneration)**:
+
+| ID | Priority | Story | Description |
+|---|:---:|---|---|
+| T149 | P1 | [UX-FIX] | Rewrite modal wording in plain English, question-led structure, replacing jargon (Fix 2.A) |
+| T150 | P1 | [UX-FIX] | Replace single `@Title` with rich document identifier: friendly title + `📄 original-filename · MIME · size`; fallback to `OriginalFileName` when title looks like a code value (Fix 2.B) |
+| T151 | P2 | [UX-FIX] | Drop jargon from bullets: "audit log" → "activity log for compliance", "(cascade)" → "lose access immediately", "without document reference" → removed (Fix 2.C) |
+| T152 | P2 | [UX-FIX] | Add type-to-confirm input: user must type the document title (or fixed phrase `DELETE`) to enable the destructive button (Fix 2.D) |
+| T153 | P2 | [UX-FIX] | Move error message to top of modal-body with alert icon and `aria-live="assertive"` (Fix 2.F) |
+| T154 | P3 | [UX-FIX] | Improve visual hierarchy: larger 🚨 icon in title, `btn-lg` on destructive button, full destructive context (Fix 2.E) |
+| T155 | P3 | [UX-FIX] | Create bUnit tests for `DeleteConfirmDialog`: plain-English wording, filename rendering, code-value detection, type-to-confirm, callbacks, `aria-live` (Fix 2.G) — **bloqueado por Phase 1** |
+
+### Affected v1.0.0 tasks (re-assessment)
+
+| Task | Original status | Re-assessment |
+|---|---|---|
+| T080 | ✅ [x] (incorrectly marked done) | Preview endpoint exists but is **broken** due to `X-Frame-Options: DENY` (root cause 1.1) |
+| T082 | ✅ [x] | 10 MB size validation works; fallback message is in English (issue 1.5) |
+| T083 | ✅ [x] | MIME type validation works correctly |
+| T084 | ✅ [x] (partially incorrect) | Adds `X-Content-Type-Options: nosniff` correctly, but the **global** `X-Frame-Options: DENY` blocks framing (root cause 1.1) — the local CSP changes are unnecessary |
+| T112 | ✅ [x] (incomplete) | Modal exists, but wording is grammatically awkward, contains jargon, and displays a raw `Title` value that may look like a code value (issue 2.1-2.6) |
+
+### Constitution alignment
+
+| Principle | Status | Note |
+|---|:---:|---|
+| I — Stack canónico | ✅ | No new dependencies; all fixes use existing Blazor/CSS |
+| II — Seguridad (OWASP) | ✅ | A05 fix: `X-Frame-Options: SAMEORIGIN` is **more secure** than `DENY` for this endpoint (still prevents clickjacking from external origins, allows same-origin preview) |
+| III — Rendimiento | ✅ | No perf impact; preview rendering time should improve (fewer blocked loads) |
+| IV — Código | ✅ | No new patterns; follows existing Blazor + DI conventions |
+| V — TDD | ⚠️ | Tests for fixes (T148, T155) are blocked by Phase 1 (no test projects). **Issue 1 and Issue 2 fixes should be paired with their tests** (TDD Hard) |
+| Restricciones — Localización | ✅ | **No violation** (clarified 2026-06-12: the modal is intentionally in English; the rest of the app remains in Spanish). The previous "VIOLATION" finding is withdrawn. |
+
+### Priority & rollout plan
+
+| Iteration | Tasks | Estimated effort | Dependencies |
+|---|---|---|---|
+| **v1.0.1 hotfix (Day 1-2)** | T141, T142, T143, T144, T149, T150 | 1-2 days | None (small code changes) |
+| **v1.0.1 enhancement (Day 3-4)** | T145, T146, T147, T151, T152, T153, T154 | 1-2 days | Hotfix done |
+| **v1.0.1 tests (Day 5)** | T148, T155 | 1 day | Phase 1 unblocked (T001-T016) |
+| **v1.1.0** | Re-validate all US4 acceptance criteria; manual QA pass | 1 day | All v1.0.1 tasks done |
+
+### Required spec updates (if fixes are approved)
+
+| Spec change | Rationale |
+|---|---|
+| Add a new sub-section to spec.md: **"§Confirmation patterns for destructive actions"** | Document that delete, replace, and any destructive action must use type-to-confirm + plain-English (no jargon) + a11y attributes |
+| Update spec.md **§Out of Scope** (or add a §"Browser compatibility") | Add a note: "Preview depends on the user's browser having a PDF viewer enabled. We provide a 'Download' fallback for users whose browsers cannot preview PDFs." |
+| Add to spec.md **FR-019** a non-functional note: "Preview requires same-origin framing (`X-Frame-Options: SAMEORIGIN`); system must NOT use `DENY` for the preview endpoint" | Prevent regression of the same issue |
+| Add to spec.md **FR-022** a non-functional note: "Destructive confirmations (delete, replace) must display the document's original filename (not the title field alone) so users can identify what is being destroyed" | Prevent regression of the code-value display issue |
+
+---
+
 ## Next Phase
 
 Proceder con **Phase 0** (research.md) y **Phase 1** (data-model.md, contracts/, quickstart.md). Los artefactos están en este directorio. La generación de tasks.md corresponde a `/speckit.tasks` (siguiente comando).

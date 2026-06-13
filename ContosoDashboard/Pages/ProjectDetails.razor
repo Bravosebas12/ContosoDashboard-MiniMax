@@ -1,10 +1,12 @@
 @page "/projects/{projectId:int}"
 @using ContosoDashboard.Services
 @using ContosoDashboard.Models
+@using ContosoDashboard.Services.Documents
 @using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
 @attribute [Authorize]
 @inject IProjectService ProjectService
+@inject IDocumentService DocumentService
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
@@ -155,8 +157,55 @@
 
             <div class="col-md-4">
                 <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">Team Members</h5>
+                    <div class="card-header">                        <h5 class="mb-0">Project Documents</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (CanUploadHere)
+                        {
+                            <DocumentUploadComponent OnUploaded="HandleDocumentUploaded"
+                                                      PreSelectedProjectId="ProjectId"
+                                                      ShowProjectSelector="false" />
+                        }
+                        else
+                        {
+                            <p class="text-muted small">Only project members can upload documents.</p>
+                        }
+
+                        @if (_loadingDocs)
+                        {
+                            <p class="text-muted small"><em>Loading documents...</em></p>
+                        }
+                        else if (_projectDocs.Count == 0)
+                        {
+                            <p class="text-muted small mb-0">No documents have been uploaded to this project yet.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-group list-group-flush">
+                                @foreach (var doc in _projectDocs)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <div class="flex-grow-1 me-2" style="min-width: 0;">
+                                            <a href="/documents/details/@doc.DocumentId" class="text-decoration-none">
+                                                <strong class="d-block text-truncate">@doc.Title</strong>
+                                            </a>
+                                            <small class="text-muted">
+                                                <span class="badge bg-secondary me-1">@doc.Category</span>
+                                                <span>@doc.UploadedAt.ToString("yyyy-MM-dd")</span>
+                                            </small>
+                                        </div>
+                                        <a href="/DocumentFiles/Download?id=@doc.DocumentId" class="btn btn-sm btn-outline-secondary" title="Download @doc.Title" aria-label="Download @doc.Title">
+                                            <i class="bi bi-download" aria-hidden="true"></i>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">                        <h5 class="mb-0">Team Members</h5>
                     </div>
                     <div class="card-body">
                         @if (!project.ProjectMembers.Any())
@@ -238,6 +287,10 @@
 
     private Project? project;
     private int currentUserId = 0;
+    private List<DocumentDto> _projectDocs = new();
+    private bool _loadingDocs;
+
+    private bool CanUploadHere => project is not null && (project.ProjectManagerId == currentUserId || project.ProjectMembers.Any(m => m.UserId == currentUserId));
 
     protected override async Task OnInitializedAsync()
     {
@@ -253,12 +306,46 @@
         if (currentUserId > 0)
         {
             project = await ProjectService.GetProjectByIdAsync(ProjectId, currentUserId);
+            if (project != null)
+            {
+                await LoadProjectDocsAsync();
+            }
         }
-        
+
         if (project == null)
         {
             NavigationManager.NavigateTo("/projects");
         }
+    }
+
+    private async Task LoadProjectDocsAsync()
+    {
+        _loadingDocs = true;
+        try
+        {
+            var filter = new DocumentListFilter(ProjectId: ProjectId);
+            var result = await DocumentService.ListAsync(
+                filter,
+                DocumentSortBy.UploadedAt,
+                SortDirection.Desc,
+                page: 1,
+                pageSize: 50,
+                currentUserId: currentUserId);
+            _projectDocs = result.Items.ToList();
+        }
+        catch
+        {
+            _projectDocs = new List<DocumentDto>();
+        }
+        finally
+        {
+            _loadingDocs = false;
+        }
+    }
+
+    private async Task HandleDocumentUploaded(DocumentDto _)
+    {
+        await LoadProjectDocsAsync();
     }
 
     private string GetStatusColor(ProjectStatus status)

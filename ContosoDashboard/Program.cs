@@ -47,7 +47,7 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // Document management services (Feature 001-documents-management)
 builder.Services.Configure<AntivirusOptions>(builder.Configuration.GetSection("Antivirus:ClamAV"));
-builder.Services.AddScoped<IAntivirusScanner, ClamAvScanner>();
+builder.Services.AddHttpClient<IAntivirusScanner, ClamAvScanner>();
 builder.Services.AddMemoryCache(); // IMemoryCache para DashboardService (T121)
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<IMimeTypeValidator, MimeTypeValidator>();
@@ -55,6 +55,7 @@ builder.Services.AddScoped<IFilePathBuilder, FilePathBuilder>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<IDocumentShareService, DocumentShareService>();
+builder.Services.AddScoped<IDocumentReportService, DocumentReportService>();
 builder.Services.AddScoped<IActivityLogCleanupService, ActivityLogCleanupService>();
 
 // T131: Background service que limpia logs > 90 días diariamente (per FR-031).
@@ -104,27 +105,20 @@ else
 // Add security headers
 app.Use(async (context, next) =>
 {
-    // X-Frame-Options DENY bloquea iframes en todo el sitio; usamos CSP frame-ancestors
-    // para el control equivalente y dejamos que la app pueda enmarcar contenido propio
-    // (necesario para la vista previa de PDFs en DocumentDetails).
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-
+    
     // Content Security Policy for Blazor Server
-    // frame-src 'self' permite que la app incruste <iframe src="/DocumentFiles/Preview?id=...">
-    // con contenido same-origin (PDFs/imágenes para vista previa inline, per FR-019).
-    // object-src 'self' permite el visor PDF embebido del navegador.
-    context.Response.Headers["Content-Security-Policy"] =
+    context.Response.Headers["Content-Security-Policy"] = 
         "default-src 'self'; " +
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
         "font-src 'self' https://cdn.jsdelivr.net; " +
-        "img-src 'self' data: https: blob:; " +
-        "object-src 'self'; " +
-        "frame-src 'self'; " +
+        "img-src 'self' data: https:; " +
         "connect-src 'self' wss: ws:;";
-
+    
     await next();
 });
 
@@ -137,7 +131,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapBlazorHub();
-app.MapRazorPages();
 app.MapFallbackToPage("/_Host");
 
 app.Run();

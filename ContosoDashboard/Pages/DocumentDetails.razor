@@ -219,6 +219,11 @@
                              ErrorMessage="_deleteErrorMessage"
                              OnConfirm="HandleDeleteConfirmed"
                              OnCancel="CancelDeleteDialog" />
+
+        <EditMetadataModal Show="_showEditMetadata"
+                           Document="_doc"
+                           OnSaved="HandleMetadataSaved"
+                           OnCancel="HandleEditMetadataCancel" />
     }
 </div>
 
@@ -306,6 +311,7 @@
 
     private void ShowReplaceDialog() { _showReplaceDialog = true; _replaceFile = null; }
     private void ShowEditMetadata() { _showEditMetadata = true; _ = InvokeAsync(StateHasChanged); }
+    private void HandleEditMetadataCancel() { _showEditMetadata = false; }
 
     private async Task HandleMetadataSaved(DocumentDto updated)
     {
@@ -319,7 +325,7 @@
                 updated.Tags,
                 _currentUserId);
             _showEditMetadata = false;
-            _errorMessage = "Metadata actualizada.";
+            _errorMessage = "Metadata updated successfully.";
         }
         catch (ContosoDashboard.Services.Documents.DocumentValidationException ex) { _errorMessage = string.Join("; ", ex.Errors); }
         catch (Exception ex) { _errorMessage = $"Error saving: {ex.Message}"; }
@@ -339,9 +345,9 @@
             _doc = await DocumentService.ReplaceFileAsync(Id, ms, _replaceFile.Name, _replaceFile.ContentType, _currentUserId);
             _showReplaceDialog = false;
             _replaceFile = null;
-            _errorMessage = "Archivo reemplazado exitosamente.";
+            _errorMessage = "File replaced successfully.";
         }
-        catch (Exception ex) { _errorMessage = $"Error al reemplazar: {ex.Message}"; }
+        catch (Exception ex) { _errorMessage = $"Error replacing file: {ex.Message}"; }
     }
 
     private void OpenDeleteDialog()
@@ -370,7 +376,7 @@
             Nav.NavigateTo("/documents");
         }
         catch (ContosoDashboard.Services.Documents.DocumentUnauthorizedAccessException ex) { _deleteErrorMessage = ex.Message; }
-        catch (ContosoDashboard.Services.Documents.DocumentNotFoundException) { _deleteErrorMessage = "El documento ya no existe."; }
+        catch (ContosoDashboard.Services.Documents.DocumentNotFoundException) { _deleteErrorMessage = "The document no longer exists."; }
         catch (Exception ex) { _deleteErrorMessage = $"Error deleting: {ex.Message}"; }
         finally { _deleteBusy = false; }
     }
