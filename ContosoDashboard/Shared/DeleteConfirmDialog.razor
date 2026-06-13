@@ -20,10 +20,6 @@
                         <li>All associated active <strong>shares</strong> will be removed (cascade).</li>
                         <li>The <strong>audit log</strong> is preserved (without document reference).</li>
                     </ul>
-                    @if (!string.IsNullOrEmpty(ErrorMessage))
-                    {
-                        <div class="alert alert-danger mt-2 mb-0">@ErrorMessage</div>
-                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="HandleCancel" disabled="@Busy">Cancel</button>
@@ -45,9 +41,6 @@
 
     /// <summary>Si la operación de eliminación está en curso (deshabilita botones).</summary>
     [Parameter] public bool Busy { get; set; }
-
-    /// <summary>Mensaje de error a mostrar dentro del modal.</summary>
-    [Parameter] public string? ErrorMessage { get; set; }
 
     /// <summary>Se invoca cuando el usuario confirma la eliminación.</summary>
     [Parameter] public EventCallback OnConfirm { get; set; }

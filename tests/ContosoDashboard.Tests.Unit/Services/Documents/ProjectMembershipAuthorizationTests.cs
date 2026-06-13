@@ -49,7 +49,7 @@ public class ProjectMembershipAuthorizationTests : IDisposable
             .Returns(DocumentConstants.MimePdf);
         _path.BuildPath(Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<string>())
             .Returns(call => $"{call.ArgAt<string>(0)}/personal/guid.pdf");
-        _storage.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<System.Threading.CancellationToken>())
+        _storage.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<System.Threading.CancellationToken>())
             .Returns("1/personal/guid.pdf");
 
         _sut = new DocumentService(_db, _storage, _av, _mime, _path, _activityLog, _notifications, _logger);

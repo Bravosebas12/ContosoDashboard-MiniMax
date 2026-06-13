@@ -42,7 +42,7 @@ public class DocumentServiceTests
     {
         await using var db = CreateDbContext();
         var storage = Substitute.For<IFileStorageService>();
-        storage.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<System.Threading.CancellationToken>())
+        storage.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<System.Threading.CancellationToken>())
             .Returns("4/personal/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.pdf");
 
         var av = Substitute.For<IAntivirusScanner>();

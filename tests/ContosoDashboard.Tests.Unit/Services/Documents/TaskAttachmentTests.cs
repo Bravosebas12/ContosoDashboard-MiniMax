@@ -51,7 +51,7 @@ public class TaskAttachmentTests : IDisposable
             .Returns(DocumentConstants.MimePdf);
         _path.BuildPath(Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<string>())
             .Returns(call => $"{call.ArgAt<string>(0)}/{call.ArgAt<int?>(1) ?? 0}/guid.pdf");
-        _storage.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<System.Threading.CancellationToken>())
+        _storage.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<System.Threading.CancellationToken>())
             .Returns("4/1/guid.pdf");
 
         _sut = new DocumentService(_db, _storage, _av, _mime, _path, _activityLog, _notifications, _logger);

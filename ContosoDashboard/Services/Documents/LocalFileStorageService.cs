@@ -33,18 +33,14 @@ public class LocalFileStorageService : IFileStorageService
         _logger.LogInformation("LocalFileStorageService rootPath: {RootPath}", _rootPath);
     }
 
-    public async Task<string> UploadAsync(Stream fileStream, string relativeDirectory, string fileExtension, CancellationToken ct = default)
+    public async Task<string> UploadAsync(Stream fileStream, string relativePath, CancellationToken ct = default)
     {
         if (fileStream == null) throw new ArgumentNullException(nameof(fileStream));
-        if (string.IsNullOrWhiteSpace(relativeDirectory)) throw new ArgumentException("Directory is required.", nameof(relativeDirectory));
-        if (string.IsNullOrWhiteSpace(fileExtension)) throw new ArgumentException("File extension is required.", nameof(fileExtension));
+        if (string.IsNullOrWhiteSpace(relativePath)) throw new ArgumentException("Path is required.", nameof(relativePath));
 
-        var cleanExt = fileExtension.TrimStart('.').ToLowerInvariant();
-        if (!DocumentConstants.AllowedMimeByExtension.ContainsKey(cleanExt))
-            throw new ArgumentException($"File extension not allowed: {cleanExt}", nameof(fileExtension));
-
-        var guid = Guid.NewGuid().ToString("N");
-        var relativePath = $"{relativeDirectory.Trim('/')}/{guid}.{cleanExt}";
+        // El storage NO genera el nombre: el llamador (DocumentService +
+        // FilePathBuilder) ya construyó el path completo. Aquí solo persistimos
+        // bytes en la ruta indicada, garantizando roundtrip con Document.FilePath.
         var fullPath = ResolveFullPath(relativePath);
 
         var fullDir = Path.GetDirectoryName(fullPath)

@@ -139,7 +139,10 @@ public class DocumentService : IDocumentService
         if (fileStream.CanSeek) fileStream.Position = 0;
         try
         {
-            await _storage.UploadAsync(fileStream, Path.GetDirectoryName(relativePath)!.Replace('\\', '/'), extension, ct);
+            // Pasamos el relativePath COMPLETO (incluyendo GUID + extensión) generado
+            // por IFilePathBuilder. El storage ya no inventa otro nombre: el path
+            // escrito en disco es el mismo que se persiste en Document.FilePath.
+            await _storage.UploadAsync(fileStream, relativePath, ct);
         }
         catch (Exception ex)
         {
@@ -410,8 +413,7 @@ public class DocumentService : IDocumentService
         var newPath = _pathBuilder.BuildPath(currentUserId.ToString(), doc.ProjectId, extension);
 
         if (newFileStream.CanSeek) newFileStream.Position = 0;
-        var newDir = Path.GetDirectoryName(newPath)!.Replace('\\', '/');
-        await _storage.UploadAsync(newFileStream, newDir, extension, ct);
+        await _storage.UploadAsync(newFileStream, newPath, ct);
 
         var oldSize = doc.FileSize;
         doc.FilePath = newPath;

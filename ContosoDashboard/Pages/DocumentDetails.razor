@@ -216,7 +216,6 @@
         <DeleteConfirmDialog Show="_showDeleteDialog"
                              Title="@(_doc?.Title ?? string.Empty)"
                              Busy="_deleteBusy"
-                             ErrorMessage="_deleteErrorMessage"
                              OnConfirm="HandleDeleteConfirmed"
                              OnCancel="CancelDeleteDialog" />
 
@@ -237,7 +236,6 @@
     private bool _showShareDialog;
     private bool _showDeleteDialog;
     private bool _deleteBusy;
-    private string? _deleteErrorMessage;
     private bool _loadingShares;
     private bool _isProjectManager;
     private List<User>? _availableUsers;
@@ -353,7 +351,7 @@
     private void OpenDeleteDialog()
     {
         if (_doc == null) return;
-        _deleteErrorMessage = null;
+        _errorMessage = null;
         _showDeleteDialog = true;
     }
 
@@ -361,23 +359,23 @@
     {
         if (_deleteBusy) return; // No permitir cerrar mientras se está eliminando
         _showDeleteDialog = false;
-        _deleteErrorMessage = null;
+        _errorMessage = null;
     }
 
     private async Task HandleDeleteConfirmed()
     {
         if (_doc == null || _deleteBusy) return;
         _deleteBusy = true;
-        _deleteErrorMessage = null;
+        _errorMessage = null;
         try
         {
             await DocumentService.DeleteAsync(Id, _currentUserId);
             // Éxito: navegar inmediatamente. El modal se cierra al desmontar la página.
             Nav.NavigateTo("/documents");
         }
-        catch (ContosoDashboard.Services.Documents.DocumentUnauthorizedAccessException ex) { _deleteErrorMessage = ex.Message; }
-        catch (ContosoDashboard.Services.Documents.DocumentNotFoundException) { _deleteErrorMessage = "The document no longer exists."; }
-        catch (Exception ex) { _deleteErrorMessage = $"Error deleting: {ex.Message}"; }
+        catch (ContosoDashboard.Services.Documents.DocumentUnauthorizedAccessException ex) { _errorMessage = ex.Message; }
+        catch (ContosoDashboard.Services.Documents.DocumentNotFoundException) { _errorMessage = "The document no longer exists."; }
+        catch (Exception ex) { _errorMessage = $"Error deleting: {ex.Message}"; }
         finally { _deleteBusy = false; }
     }
 

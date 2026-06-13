@@ -28,7 +28,13 @@ public class LocalFileStorageServiceTests : IDisposable
         var payload = Encoding.UTF8.GetBytes("hello-document");
         await using var source = new MemoryStream(payload);
 
-        var relativePath = await _sut.UploadAsync(source, "4/personal", "txt");
+        // Caller provides the FULL path (including filename + extension).
+        // The storage must NOT invent another name.
+        var relativePath = $"4/personal/{Guid.NewGuid():N}.txt";
+        var returnedPath = await _sut.UploadAsync(source, relativePath);
+        returnedPath.Should().Be(relativePath,
+            "the storage must return the same path it was given, not invent a new one");
+
         await using var downloaded = await _sut.DownloadAsync(relativePath);
         using var reader = new StreamReader(downloaded, Encoding.UTF8);
         var content = await reader.ReadToEndAsync();
