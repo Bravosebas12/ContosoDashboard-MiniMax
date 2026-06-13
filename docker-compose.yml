@@ -1,0 +1,145 @@
+# =============================================================================
+# ContosoDashboard — base Docker Compose definition.
+#
+# Services:
+#   • db       — SQL Server 2022 (Express edition in container, no LocalDB)
+#   • clamav   — ClamAV daemon for the document scanner (replaces the missing
+#                on-host ClamAV that the dev profile assumes)
+#   • app      — Blazor Server (this repository)
+#
+# Usage:
+#   docker compose up -d                 # start everything
+#   docker compose logs -f app           # follow app logs
+#   docker compose down -v               # stop + delete volumes (CAUTION)
+#
+# Local overrides: docker-compose.override.yml is auto-merged by `docker compose`
+# (only created when running locally with `docker compose --profile dev`).
+# =============================================================================
+
+name: contoso-dashboard
+
+services:
+  # ---------------------------------------------------------------------------
+  # SQL Server 2022 — replaces LocalDB for cross-platform containerized runs.
+  # Express edition in the image keeps memory footprint low.
+  # ---------------------------------------------------------------------------
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
+    container_name: contoso-db
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?SA_PASSWORD is required (see .env.example)}
+      MSSQL_PID: ${MSSQL_PID:-Express}
+      # Force the listener to bind on the standard port inside the container.
+      MSSQL_TCP_PORT: 1433
+    ports:
+      - "${SQL_PORT:-1433}:1433"
+    volumes:
+      - contoso-db-data:/var/opt/mssql
+      # Seed scripts: anything in ./docker/db-init/ is run on first start
+      # (alphabetical order, *.sql). Remove if not needed.
+      - ./docker/db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # /opt/mssql-tools18/bin/sqlcmd ships with the 2022 image.
+      # The -No flag enforces TLS; required by SQL 2022 by default.
+      test:
+        - /bin/sh
+        - -c
+        - "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -No -Q 'SELECT 1' || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - contoso-net
+
+  # ---------------------------------------------------------------------------
+  # ClamAV daemon — required by ContosoDashboard.Services.Documents.ClamAvScanner.
+  # clamav/clamav downloads fresh virus definitions at build time.
+  # ---------------------------------------------------------------------------
+  clamav:
+    image: clamav/clamav:1.3
+    container_name: contoso-clamav
+    restart: unless-stopped
+    # By default clamav/clamav runs `freshclam` (definition updater) as a side
+    # process. In a disconnected environment set CLAMAV_NO_FRESHCLAM=1 to skip
+    # outbound traffic.
+    environment:
+      CLAMAV_NO_FRESHCLAM: "0"   # set to 1 for offline training environments
+      CLAMAV_NO_CLAMD: "0"
+    ports:
+      - "${CLAMAV_PORT:-3310}:3310"
+    volumes:
+      - contoso-clamav-data:/var/lib/clamav
+    healthcheck:
+      # clamdcheck.sh is provided by the official image. Fall back to a TCP
+      # probe if the script is missing in your image tag.
+      test: ["CMD-SHELL", "clamdcheck.sh || (echo PING | nc -w 1 localhost 3310 | grep -q PONG) || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s   # first-run signature download can take a few minutes
+    networks:
+      - contoso-net
+
+  # ---------------------------------------------------------------------------
+  # ContosoDashboard Blazor Server.
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_CONFIGURATION: Release
+    image: contoso-dashboard:latest
+    container_name: contoso-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      clamav:
+        condition: service_started   # AV is allowed to start in degraded mode
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: ${ASPNETCORE_URLS:-http://+:8080}
+      # Build the connection string from .env values so we don't hard-code secrets.
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=ContosoDashboard;User Id=sa;Password=${SA_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
+      # ClamAV endpoint (matches the clamav service above)
+      Antivirus__ClamAV__Host: ${ANTIVIRUS_CLAMAV_HOST:-clamav}
+      Antivirus__ClamAV__Port: ${ANTIVIRUS_CLAMAV_PORT:-3310}
+      Antivirus__ClamAV__AllowDegradedMode: ${ANTIVIRUS_CLAMAV_ALLOWDEGRADEDMODE:-true}
+      # Standard .NET diagnostics in containers
+      DOTNET_RUNNING_IN_CONTAINER: "true"
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      # Persist uploaded documents across container restarts.
+      - contoso-uploads:/app/AppData/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - contoso-net
+
+# =============================================================================
+# Named volumes (data survives `docker compose down` — only `down -v` wipes it)
+# =============================================================================
+volumes:
+  contoso-db-data:
+    name: contoso-dashboard_db
+  contoso-clamav-data:
+    name: contoso-dashboard_clamav
+  contoso-uploads:
+    name: contoso-dashboard_uploads
+
+# =============================================================================
+# Network — all services share a private bridge.
+# =============================================================================
+networks:
+  contoso-net:
+    name: contoso-dashboard_net
+    driver: bridge
