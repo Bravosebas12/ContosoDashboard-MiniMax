@@ -47,7 +47,7 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // Document management services (Feature 001-documents-management)
 builder.Services.Configure<AntivirusOptions>(builder.Configuration.GetSection("Antivirus:ClamAV"));
-builder.Services.AddHttpClient<IAntivirusScanner, ClamAvScanner>();
+builder.Services.AddScoped<IAntivirusScanner, ClamAvScanner>();
 builder.Services.AddMemoryCache(); // IMemoryCache para DashboardService (T121)
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<IMimeTypeValidator, MimeTypeValidator>();
