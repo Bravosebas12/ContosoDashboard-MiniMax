@@ -40,12 +40,12 @@ public class DocumentShareService : IDocumentShareService
     {
         // 1. Validar inputs
         if (request.TargetUserId == currentUserId)
-            throw new InvalidOperationException("You cannot share a document with yourself.");
+            throw new InvalidOperationException("No puedes compartir un documento contigo mismo.");
 
         // Verificar target existe y está activo
         var targetUser = await _db.Users.FindAsync(new object?[] { request.TargetUserId }, ct);
         if (targetUser == null)
-            throw new InvalidOperationException($"Target user {request.TargetUserId} does not exist.");
+            throw new InvalidOperationException($"Usuario destino {request.TargetUserId} no existe.");
 
         // 2. Verificar el documento
         var doc = await _db.Documents.FindAsync(new object?[] { request.DocumentId }, ct)
@@ -72,7 +72,7 @@ public class DocumentShareService : IDocumentShareService
             if (!isTargetInProject)
                 throw new DocumentValidationException(new[]
                 {
-                    $"A PM can only share within the project. User {request.TargetUserId} is not a member of project {doc.ProjectId}."
+                    $"El PM solo puede compartir dentro del proyecto. El usuario {request.TargetUserId} no es miembro del proyecto {doc.ProjectId}."
                 });
         }
 
@@ -133,7 +133,7 @@ public class DocumentShareService : IDocumentShareService
             ?? throw new DocumentNotFoundException(documentShareId);
 
         if (share.RevokedAt != null)
-            throw new InvalidOperationException("This share has already been revoked.");
+            throw new InvalidOperationException("Este share ya fue revocado.");
 
         if (share.SharedByUserId != currentUserId)
         {

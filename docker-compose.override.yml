@@ -10,7 +10,6 @@
 
 services:
   app:
-    profiles: ["dev", "default"]
     build:
       target: build          # build stage only — keeps `dotnet run` semantics
       args:
@@ -23,7 +22,7 @@ services:
     # Run the SDK image in dev so `dotnet watch` is available.
     # Comment out `image:` override in docker-compose.yml if you prefer the
     # multi-stage to be the same container shape.
-    command: ["dotnet", "watch", "run", "--no-launch-profile", "--urls", "http://+:8080"]
+    command: ["dotnet", "watch", "run", "--project", "/src/ContosoDashboard/ContosoDashboard.csproj", "--no-launch-profile", "--urls", "http://+:8080"]
     ports:
       - "8080:8080"
       - "8081:8081"          # HTTPS in dev
@@ -32,12 +31,17 @@ services:
       # is not clobbered by the host's.
       - ./ContosoDashboard:/src/ContosoDashboard
       - ./ContosoDashboard.slnx:/src/ContosoDashboard.slnx
+      # Anonymous volumes for build artifacts: shadow the host-owned bin/obj
+      # so the non-root container user (UID 1000) can write into them.
+      # Without this, MSBuild fails with MSB3021 (access denied) on Windows hosts
+      # where the bind-mounted bin/obj is owned by the host user.
+      - /src/ContosoDashboard/bin
+      - /src/ContosoDashboard/obj
       - contoso-uploads-dev:/app/AppData/uploads
     healthcheck:
       disable: true          # `dotnet watch` restarts the process, so HEALTHCHECK is unreliable here
 
   db:
-    profiles: ["dev", "default"]
     # Expose the dev tools port to the host so you can connect with SSMS/AZ Data Studio.
     ports:
       - "${SQL_PORT:-1433}:1433"
@@ -46,7 +50,6 @@ services:
       - ./docker/db-init:/docker-entrypoint-initdb.d:ro
 
   clamav:
-    profiles: ["dev", "default"]
     # In dev, allow degraded mode (env var in app) so missing signatures do not block uploads.
     environment:
       CLAMAV_NO_FRESHCLAM: "1"     # avoid hitting the network on every dev startup

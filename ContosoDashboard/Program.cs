@@ -47,7 +47,7 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // Document management services (Feature 001-documents-management)
 builder.Services.Configure<AntivirusOptions>(builder.Configuration.GetSection("Antivirus:ClamAV"));
-builder.Services.AddScoped<IAntivirusScanner, ClamAvScanner>();
+builder.Services.AddHttpClient<IAntivirusScanner, ClamAvScanner>();
 builder.Services.AddMemoryCache(); // IMemoryCache para DashboardService (T121)
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<IMimeTypeValidator, MimeTypeValidator>();
@@ -55,7 +55,6 @@ builder.Services.AddScoped<IFilePathBuilder, FilePathBuilder>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<IDocumentShareService, DocumentShareService>();
-builder.Services.AddScoped<IDocumentReportService, DocumentReportService>();
 builder.Services.AddScoped<IActivityLogCleanupService, ActivityLogCleanupService>();
 
 // T131: Background service que limpia logs > 90 días diariamente (per FR-031).

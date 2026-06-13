@@ -72,38 +72,38 @@ public class DocumentService : IDocumentService
     {
         // 1. Validar entrada
         var errors = new List<string>();
-        if (fileStream == null) errors.Add("File is required.");
-        if (string.IsNullOrWhiteSpace(fileName)) errors.Add("File name is required.");
-        if (string.IsNullOrWhiteSpace(title)) errors.Add("Title is required.");
-        else if (title.Length > DocumentConstants.MaxTitleLength) errors.Add($"Title max {DocumentConstants.MaxTitleLength} chars.");
-        if (description?.Length > DocumentConstants.MaxDescriptionLength) errors.Add($"Description max {DocumentConstants.MaxDescriptionLength} chars.");
+        if (fileStream == null) errors.Add("Archivo requerido.");
+        if (string.IsNullOrWhiteSpace(fileName)) errors.Add("Nombre de archivo requerido.");
+        if (string.IsNullOrWhiteSpace(title)) errors.Add("Título requerido.");
+        else if (title.Length > DocumentConstants.MaxTitleLength) errors.Add($"Título máx. {DocumentConstants.MaxTitleLength} chars.");
+        if (description?.Length > DocumentConstants.MaxDescriptionLength) errors.Add($"Descripción máx. {DocumentConstants.MaxDescriptionLength} chars.");
         if (string.IsNullOrWhiteSpace(category) || !DocumentConstants.AllowedCategories.Contains(category))
-            errors.Add($"Invalid category. Allowed: {string.Join(", ", DocumentConstants.AllowedCategories)}");
+            errors.Add($"Categoría inválida. Permitidas: {string.Join(", ", DocumentConstants.AllowedCategories)}");
 
         var extension = Path.GetExtension(fileName).TrimStart('.').ToLowerInvariant();
         if (string.IsNullOrEmpty(extension) || !DocumentConstants.AllowedMimeByExtension.ContainsKey(extension))
-            errors.Add($"File extension not allowed: {extension}");
+            errors.Add($"Extensión no permitida: {extension}");
 
         if (fileStream != null && fileStream.CanSeek) fileStream.Position = 0;
         if (fileStream != null && fileStream.Length > DocumentConstants.MaxFileSizeBytes)
-            errors.Add($"Maximum file size: {DocumentConstants.MaxFileSizeBytes / 1024 / 1024} MB.");
+            errors.Add($"Tamaño máximo permitido: {DocumentConstants.MaxFileSizeBytes / 1024 / 1024} MB.");
 
         // Validar tags
         if (!string.IsNullOrEmpty(tags))
         {
             var tagList = tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (tagList.Length > DocumentConstants.MaxTags)
-                errors.Add($"Max {DocumentConstants.MaxTags} tags allowed (received: {tagList.Length}).");
+                errors.Add($"Máx. {DocumentConstants.MaxTags} tags permitidos (recibidos: {tagList.Length}).");
             foreach (var t in tagList)
                 if (t.Length > DocumentConstants.MaxTagLength)
-                    errors.Add($"Tag '{t[..Math.Min(t.Length, 20)]}...' exceeds {DocumentConstants.MaxTagLength} chars.");
+                    errors.Add($"Tag '{t[..Math.Min(t.Length, 20)]}...' excede {DocumentConstants.MaxTagLength} chars.");
         }
 
         // Validar project access si se especifica
         if (projectId.HasValue)
         {
             var isMember = await IsUserProjectMemberAsync(currentUserId, projectId.Value, ct);
-            if (!isMember) errors.Add($"You don't have access to project {projectId.Value}.");
+            if (!isMember) errors.Add($"No tienes acceso al proyecto {projectId.Value}.");
         }
 
         if (errors.Count > 0) throw new DocumentValidationException(errors);
@@ -139,10 +139,7 @@ public class DocumentService : IDocumentService
         if (fileStream.CanSeek) fileStream.Position = 0;
         try
         {
-            // Pasamos el relativePath COMPLETO (incluyendo GUID + extensión) generado
-            // por IFilePathBuilder. El storage ya no inventa otro nombre: el path
-            // escrito en disco es el mismo que se persiste en Document.FilePath.
-            await _storage.UploadAsync(fileStream, relativePath, ct);
+            await _storage.UploadAsync(fileStream, Path.GetDirectoryName(relativePath)!.Replace('\\', '/'), extension, ct);
         }
         catch (Exception ex)
         {
@@ -413,7 +410,8 @@ public class DocumentService : IDocumentService
         var newPath = _pathBuilder.BuildPath(currentUserId.ToString(), doc.ProjectId, extension);
 
         if (newFileStream.CanSeek) newFileStream.Position = 0;
-        await _storage.UploadAsync(newFileStream, newPath, ct);
+        var newDir = Path.GetDirectoryName(newPath)!.Replace('\\', '/');
+        await _storage.UploadAsync(newFileStream, newDir, extension, ct);
 
         var oldSize = doc.FileSize;
         doc.FilePath = newPath;
