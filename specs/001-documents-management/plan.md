@@ -78,9 +78,9 @@ Implementar la gestión de documentos (subida, organización, descarga, comparti
 | II | **Requisitos de Seguridad (OWASP A01-A10)** | ✅ PASS | A01: autorización en 3 capas (`[Authorize]` + `IDocumentService.UserHasAccessAsync` + `IDocumentShareService` business rules); A03: EF Core LINQ exclusivamente, sin `FromSqlRaw`; A06: `IAntivirusScanner` con `ClamAvScanner` (nClam) — fail-open en training, fail-closed en producción (per AC-1.3.x); A07: cookies HttpOnly (existente); A08: validación vía DataAnnotations en entidades; A09: `ActivityLog` estructurado con eventos `document.*` |
 | III | **Rendimiento y Escalabilidad** | ✅ PASS | async/await en todos los `IDocumentService` methods; paginación `PagedResult<T>` con page size 25; índices definidos en `data-model.md` (IX_Documents_UploadedByUserId, IX_Documents_ProjectId, IX_Documents_Category, IX_Documents_UploadedAt, etc.); decisión last-writer-wins evita locks; benchmarks: upload ≤ 30s p95, list ≤ 500 ms p95, search ≤ 2s p95, preview ≤ 3s p95 |
 | IV | **Estándares de Código** | ✅ PASS | records para DTOs (`DocumentDto`, `UploadResult`, `ScanResult`, `PagedResult<T>`, `ShareRequest`); nullable reference types; `IFileStorageService` interface evita acoplamiento a filesystem concreto; sin AutoMapper; `sealed` por defecto en servicios; sin service locator; código en español para UI, identificadores en inglés |
-| V | **TDD Hard + Pirámide Completa** | ✅ PASS | 8 niveles con proyectos separados (`.Tests.Unit`, `.Tests.Components`, `.Tests.Integration`, `.Tests.Contract`, `.Tests.E2E.Api`, `.Tests.E2E.UI`, `.Tests.Performance`); Stryker.NET ≥ 70% gate bloqueante; BenchmarkDotNet + NBomber + k6 para 6 niveles de pirámide de rendimiento; 5 perfiles de carga (smoke, load, stress, spike, soak); TDD Hard mandatorio; tests escritos ANTES de la implementación |
+| V | **TDD Hard + Pirámide Completa** | ⚠️ **CONDITIONAL PASS** | 8 niveles con proyectos separados. **Hallazgo 2026-06-12** del agente `/code-quality`: cobertura actual **76.4% líneas / 57.65% branches** está por debajo de los objetivos de Constitución V.5 (≥80% / ≥75%). 11 archivos en `Services/` y `Models/` sin tests. Adicionalmente, las suites de mutación (Stryker.NET) y performance (NBomber/k6) **nunca se ejecutaron** (T126, T127, T128, T135 marcadas como bloqueadas). **Plan de remediación**: nueva `Phase 12: Coverage Boost al 80% líneas / 75% branches` (tasks T141–T160) en `tasks.md`. Los gates pasarán cuando Phase 12 se complete y se suba el threshold de `coverage.runsettings` (ver `coverage.target.runsettings`). |
 
-**Resultado final de gates**: ✅ **TODOS LOS GATES PASAN** después del diseño — no se requieren violaciones justificadas. La Constitución v1.1.0 se respeta en su totalidad.
+**Resultado final de gates**: ✅ **3 gates PASS** (I, II, III, IV) + ⚠️ **1 gate CONDITIONAL** (V). La Constitución v1.1.0 se respeta condicionalmente; la condicionalidad se levanta con la ejecución de la Phase 12. No se requieren violaciones justificadas formalmente porque la condicionalidad está documentada en `tasks.md` con plan de remediación trazado.
 
 ## Project Structure
 
@@ -142,11 +142,33 @@ ContosoDashboard.Tests.Unit/                   (🆕 proyecto xUnit)
 ├── Services/Documents/
 │   ├── DocumentServiceTests.cs                (funcionales)
 │   ├── DocumentShareServiceTests.cs           (funcionales)
-│   └── LocalFileStorageServiceTests.cs        (unit técnicas)
+│   ├── LocalFileStorageServiceTests.cs        (unit técnicas)
+│   ├── ClamAvScannerTests.cs
+│   ├── DocumentDeleteTests.cs
+│   ├── DocumentReportServiceTests.cs
+│   ├── DocumentSearchAndFilterTests.cs
+│   ├── ProjectMembershipAuthorizationTests.cs
+│   ├── TaskAttachmentTests.cs
+│   └── ActivityLogBackgroundServiceTests.cs   (🆕 T149 — Phase 12)
+├── Services/
+│   ├── UserServiceTests.cs                    (🆕 T141 — Phase 12)
+│   ├── ProjectServiceTests.cs                 (🆕 T142 — Phase 12)
+│   ├── TaskServiceTests.cs                    (🆕 T143 — Phase 12)
+│   ├── NotificationServiceTests.cs            (🆕 T144 — Phase 12)
+│   ├── CustomAuthenticationStateProviderTests.cs (🆕 T146 — Phase 12)
+│   ├── DashboardServiceScopeTests.cs          (existente; extender T151)
+│   ├── ActivityLogServiceTests.cs             (existente; extender T154)
+│   └── ActivityLogQueueTests.cs               (existente)
+├── Services/ActivityLog/
+│   ├── NotificationQueueTests.cs              (🆕 T145 — Phase 12)
+│   ├── ActivityLogCleanupServiceTests.cs      (🆕 T147 — Phase 12)
+│   └── ActivityLogCleanupBackgroundServiceTests.cs (🆕 T148 — Phase 12)
 ├── Helpers/
 │   ├── MimeTypeValidatorTests.cs
-│   ├── FilePathBuilderTests.cs
+│   ├── FilePathBuilderTests.cs                (existente; extender T152)
 │   └── DocumentConstantsTests.cs
+├── Models/
+│   └── ProjectTests.cs                        (🆕 T150 — Phase 12)
 └── ContosoDashboard.Tests.Unit.csproj         (.NET 8, xunit, NSubstitute, FluentAssertions, coverlet)
 
 ContosoDashboard.Tests.Components/             (🆕 proyecto xUnit + bUnit)

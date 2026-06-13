@@ -313,6 +313,54 @@
 
 ---
 
+## Phase 12: Coverage Boost al 80% líneas / 75% branches (P1)
+
+**⚠️ Hallazgo del agente `/code-quality` (2026-06-12)**: la cobertura actual es **76.4% líneas / 57.65% branches**, por debajo de los objetivos de la Constitución v1.1.0 (≥80% / ≥75%). 11 archivos en `Services/` y `Models/` no tienen ningún test. Adicionalmente, los gates de mutación (Stryker.NET) y performance (NBomber/k6) están bloqueados por suites no funcionales. Esta fase cierra esos gaps.
+
+**Goal**: Alcanzar cobertura de líneas ≥ 80% y branches ≥ 75% en todo el código de producción de `ContosoDashboard/` y desbloquear los gates automatizables de Constitución V.
+
+**Independent Test**: `dotnet test ContosoDashboard.slnx --settings coverage.target.runsettings` retorna exit code 0. `code-quality-report.md` muestra 🟢 en cobertura y mutación. `pact-broker can-i-deploy` retorna success. NBomber y k6 smoke runs sin errores.
+
+**Estimación de esfuerzo**: ~24h (2-3 sprints). Tests TDD Hard obligatorios.
+
+### B.1 — Unit tests para los 11 archivos sin cobertura (T141–T150)
+
+- [ ] T141 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/UserServiceTests.cs` — `GetByIdAsync` (existe, no existe, soft-deleted), `GetUserByEmailAsync` (case-insensitive, no encontrado), `CreateAsync` (validación email duplicado), `UpdateLastLoginAsync`. **Objetivo**: ≥ 80% cobertura en `UserService.cs`.
+- [ ] T142 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/ProjectServiceTests.cs` — `GetByIdAsync`, `ListByUserAsync` (filtro de membresía), autorización (no miembro → 403), `IsUserMemberOrPMAsync`. **Objetivo**: ≥ 80% cobertura en `ProjectService.cs` + branches de autorización OWASP A01.
+- [ ] T143 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/TaskServiceTests.cs` — `GetByIdAsync`, `ListByUserAsync`, máquina de estado de `TaskStatus` (`CanTransitionTo` con todos los pares válidos/inválidos), `ListByProjectAsync`. **Objetivo**: ≥ 80% cobertura en `TaskService.cs`.
+- [ ] T144 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/NotificationServiceTests.cs` — `SendAsync` (receptor único, broadcast por rol), `MarkAsReadAsync` (idempotente), `GetUnreadAsync` (filtro por usuario), expiración. **Objetivo**: ≥ 80% cobertura en `NotificationService.cs`.
+- [ ] T145 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/NotificationQueueTests.cs` — `EnqueueAsync`, `DequeueAsync`, retry en fallo, idempotencia (deduplicación por `MessageId`), concurrencia (semáforo). **Objetivo**: ≥ 80% cobertura en `NotificationQueue.cs` (paralelo a `ActivityLogQueueTests.cs` existente).
+- [ ] T146 [P] [CRITICAL] Crear `tests/ContosoDashboard.Tests.Unit/Services/CustomAuthenticationStateProviderTests.cs` — `GetAuthenticationStateAsync` (anon, autenticado, sesión expirada, claims vacíos, cookie corrupta), `NotifyUserAuthenticationAsync`, `NotifyUserSignOutAsync`. **Objetivo**: 100% cobertura en `CustomAuthenticationStateProvider.cs` (cumple OWASP A07).
+- [ ] T147 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/ActivityLogCleanupServiceTests.cs` — `CleanupAsync` (0 logs, todos < 90d, todos > 90d, mixto, error de DB, log con `DocumentId` ya null). **Objetivo**: ≥ 80% cobertura en `ActivityLogCleanupService.cs`.
+- [ ] T148 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/ActivityLogCleanupBackgroundServiceTests.cs` — `ExecuteAsync` (start, loop normal, error recovery, stop con `CancellationToken`, retry backoff). **Objetivo**: ≥ 70% cobertura en `ActivityLogCleanupBackgroundService.cs`.
+- [ ] T149 [P] Crear `tests/ContosoDashboard.Tests.Unit/Services/Documents/ActivityLogBackgroundServiceTests.cs` — `ExecuteAsync` (start, drain queue, stop, error). **Objetivo**: ≥ 70% cobertura en `ActivityLogBackgroundService.cs`.
+- [ ] T150 [P] Crear `tests/ContosoDashboard.Tests.Unit/Models/ProjectTests.cs` — DataAnnotations (`[Required]`, `[StringLength]`), defaults (`CreatedAt = UtcNow`), `AddMember`/`RemoveMember` mutation. **Objetivo**: validar reglas de modelo que la cobertura actual marca como 0%.
+
+### B.2 — Branch coverage para archivos parcialmente cubiertos (T151–T154)
+
+- [ ] T151 [P] Tests de branches en `tests/ContosoDashboard.Tests.Unit/Services/DashboardServiceTests.cs` (extender el existente) — `GetRecentDocumentsAsync` (cache hit, cache miss, usuario sin documentos, count > disponibles, expiración de cache), `GetUserDocumentCountAsync` (con/sin cache), `GetProjectSummaryAsync` (proyecto sin documentos, proyecto vacío). **Objetivo**: subir `DashboardService.cs` de 29.4% → ≥ 80%.
+- [ ] T152 [P] Edge cases en `tests/ContosoDashboard.Tests.Unit/Services/Documents/FilePathBuilderTests.cs` (extender) — path traversal (`../`, `..\`), caracteres Unicode, `userId` con caracteres especiales (`@`, `.`), longitud máxima de extensión, `projectId == 0` (personal folder), `projectId < 0` (inválido). **Objetivo**: subir `FilePathBuilder.cs` de 82.6% → ≥ 95% + cubrir branches de validación regex.
+- [ ] T153 [P] Tests de branches en `tests/ContosoDashboard.Tests.Unit/Services/Documents/DocumentServiceTests.cs` (extender el existente) — ramas de validación: `title` vacío/largo, MIME no permitido en whitelist, tamaño > 25MB, virus detectado (rollback), `projectId` no miembro (403), `taskId` con `ProjectId == null`, `IsNullOrEmpty` en `currentUserId`, `CancellationToken` cancelado. **Objetivo**: cubrir todos los branches de `DocumentService.cs` (subir branches de 57.65% → ≥ 75%).
+- [ ] T154 [P] Tests de branches en `tests/ContosoDashboard.Tests.Unit/ActivityLogServiceTests.cs` (extender el existente) — log con `metadata == null`, `documentId` inválido, evento duplicado (idempotencia), serialización JSON de metadata complejo. **Objetivo**: cubrir ramas faltantes de `ActivityLogService.cs`.
+
+### B.3 — Habilitar gates bloqueados de Constitución V (T155–T158)
+
+- [ ] T155 [P] Corregir y habilitar `tests/stryker-config.json` — el scope actual apunta a paths que no existen (`ContosoDashboard/Domain/Documents/**`); corregir a `ContosoDashboard/Services/**`, `ContosoDashboard/Models/**`, `ContosoDashboard/Data/ApplicationDbContext.cs`. Ejecutar `dotnet stryker --project ContosoDashboard.csproj --settings tests/stryker-config.json --output "quality-reports/mutation"`. Revisar mutantes sobrevivientes y añadir tests o justificar con `stryker-config.json` `ignore-mutations`. **Objetivo**: mutation score ≥ 70% (target ≥ 80%) en `Services/`.
+- [ ] T156 Habilitar NBomber (T127) — añadir `NBomber.Http` a `.Tests.Performance.csproj` (NBomber 5.x fix de incompatibilidad registrado en T008), crear `tests/ContosoDashboard.Tests.Performance/Component/DocumentsEndpointTests.cs` con 1 escenario smoke de 30s / 10 RPS sobre `GET /api/documents`. **Objetivo**: desbloquear gate de performance V.4 nivel componente.
+- [ ] T157 Habilitar k6 (T128) — convertir los placeholders `tests/k6/{smoke,load,stress,spike,soak}.js` a scripts ejecutables con thresholds reales (http_req_duration p95 < 500ms, http_req_failed < 0.1%). Ejecutar `k6 run tests/k6/smoke.js` contra `dotnet run` y verificar que retorna exit 0. **Objetivo**: gate V.4 nivel E2E sistema desbloqueado.
+- [ ] T158 Habilitar Playwright headed (T135) — ejecutar `pwsh tests/ContosoDashboard.Tests.E2E.UI/bin/Debug/net8.0/playwright.ps1 install chromium` (instalación local del browser), crear 1 test smoke `Tests.E2E.UI/DocumentsUploadSmokeTests.cs` con `[Fact(Skip = "...")]` removido y `[Fact]` activo. **Objetivo**: gate V.2 nivel E2E UI desbloqueado.
+
+### B.4 — Validación final y ajuste de `coverage.runsettings` (T159–T160)
+
+- [ ] T159 Re-ejecutar agente `/code-quality` (`pwsh scripts/run-code-quality.ps1`) y validar que el reporte `code-quality-report.md` muestra 🟢 en: cobertura líneas ≥ 80%, branches ≥ 75%, vulnerabilidades NuGet = 0 (o ≤ 2 con plan de remediación), duplicación < 3%, mutation score ≥ 70%. Si cualquier gate es rojo, volver a T141–T158 y cerrar el gap antes de fusionar.
+- [ ] T160 Ejecutar `/speckit.analyze` para cross-validar que `spec.md`, `plan.md` y `tasks.md` (incluyendo la Phase 12 añadida) están sincronizados y no hay ambigüedades. Subir el threshold de `coverage.runsettings` de 40%/35% a 80%/75% SOLO después de T159 verde.
+
+**Checkpoint**: Todos los gates de Constitución V.5 en 🟢. `coverage.target.runsettings` puede ser renombrado a `coverage.runsettings` sin romper CI. Tarea 160 cierra el ciclo de feedback al gate de merge.
+
+---
+
+---
+
 ## Resumen de Dependencias (orden de ejecución)
 
 ```
@@ -321,28 +369,32 @@ Phase 1 (Setup) → Phase 2 (Foundational) → Phase 3 (US1) → Phase 4 (US2)
                                               Phase 5 (US3) → Phase 6 (US4) → Phase 7 (US5) → Phase 8 (US6) → Phase 9 (US7) → Phase 10 (US8)
                                                                                                                                           ↓
                                                                                                                                 Phase 11 (Polish)
+                                                                                                                                          ↓
+                                                                                                                              Phase 12 (Coverage Boost) ← añadida 2026-06-12 por hallazgo de /code-quality
 ```
 
+> **Nota de cobertura**: Las tareas de cobertura específica por historia (T051, T064, T073, T093, T094, T114) ahora son **subordinadas** a la Phase 12. La Phase 12 cierra el gap global y al fusionar hace que esas verificaciones por US sean verdes automáticamente.
+
 **Critical path**: Setup → Foundational → US1 → US2 (las 2 P1 críticas)
-**Stories P2 y P3 pueden ser entregadas en iteraciones posteriores**, una vez que las P1 estén validadas.
+> **Estado al 2026-06-12 (pre-Phase 12)**: líneas 76.4% 🟡 · branches 57.65% 🟡 · mutación N/D 🔴 · E2E UI N/D 🔴.
 
-## Resumen de Cobertura de Quality Gates (Constitución V.5)
+| Gate | Test type | Threshold | Bloqueante | Estado actual | Cerrado por |
+|------|-----------|-----------|:----------:|:---:|---|
+| Cobertura de líneas | coverlet | ≥ 80% target, ≥ 40% mín | < 40% | 🟡 76.4% | Phase 12 (T141–T154, T159) |
+| Cobertura de branches | coverlet | ≥ 75% target, ≥ 35% mín | < 35% | 🟡 57.65% | Phase 12 (T151–T154, T159) |
+| Métodos públicos cubiertos | coverlet | 100% | < 90% | 🟡 ~75% | Phase 12 (T141–T150) |
+| **Mutation score** | Stryker.NET | ≥ 80% target, ≥ 70% mín | < 70% | 🔴 N/D | Phase 12 (T155) |
+| E2E API happy paths | RestSharp | 100% | < 90% | 🟡 parcial | Phase 11 (T132) |
+| E2E UI smoke | Playwright | 100% | < 80% | 🔴 N/D | Phase 12 (T158) |
+| Contratos Pact verificados | PactNet | 100% | < 90% | 🟡 1 archivo | Phase 11 (T132) |
+| p95 latencia | NBomber/k6 | < SLO | ≥ 1.2× SLO | 🔴 N/D | Phase 12 (T156, T157) |
+| Error rate bajo load | k6 | < 0.1% | ≥ 0.5% | 🔴 N/D | Phase 12 (T157) |
 
-| Gate | Test type | Threshold | Bloqueante |
-|------|-----------|-----------|:----------:|
-| Cobertura de líneas | coverlet | ≥ 80% target, ≥ 40% mín | < 40% |
-| Cobertura de branches | coverlet | ≥ 75% target, ≥ 35% mín | < 35% |
-| Métodos públicos cubiertos | coverlet | 100% | < 90% |
-| **Mutation score** | Stryker.NET | ≥ 80% target, ≥ 70% mín | < 70% |
-| E2E API happy paths | RestSharp | 100% | < 90% |
-| E2E UI smoke | Playwright | 100% | < 80% |
-| Contratos Pact verificados | PactNet | 100% | < 90% |
-| p95 latencia | NBomber/k6 | < SLO | ≥ 1.2× SLO |
-| Error rate bajo load | k6 | < 0.1% | ≥ 0.5% |
+> **Subir threshold a 80%/75%**: ejecutar solo **después** de T159 verde. Para CI, se ha creado `coverage.target.runsettings` con los thresholds objetivo; `coverage.runsettings` mantiene los mínimos absolutos (40%/35%) hasta que Phase 12 se complete.
 
 ## Notas
 
-- **Total de tasks**: 140 (incluyendo tests explícitos para cada historia, per Constitución V.1 TDD Hard).
+- **Total de tasks**: 160 (140 originales + 20 aÃ±adidas en Phase 12: Coverage Boost), incluyendo tests explÃ­citos para cada historia, per ConstituciÃ³n V.1 TDD Hard.
 - **Pirámide completa**: 7 proyectos de tests cubren los 8 niveles de la pirámide (unit + técnicas + componentes + integración + contratos + E2E API + E2E UI + performance).
 - **TDD mandatorio**: cada historia tiene tests ANTES de implementación (tasks T038-T040 para US1, T055-T057 para US2, etc.).
 - **Mutación con Stryker.NET ≥ 70%** es gate bloqueante (verificado en T126).

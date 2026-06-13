@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  coverage.target.runsettings
+  ============================
+  Configuración de cobertura con los UMBRALES OBJETIVO de Constitución v1.1.0 §V.5:
+    - Líneas:   >= 80%  (bloqueante si < 80%)
+    - Branches: >= 75%  (bloqueante si < 75%)
+
+  Este archivo está pensado para ser renombrado a `coverage.runsettings` SOLO
+  después de que la Phase 12 del feature 001-documents-management (tasks
+  T141-T160) esté completa y `/code-quality` reporte 🟢 en cobertura.
+
+  Mientras tanto:
+    - `coverage.runsettings` mantiene los umbrales mínimos absolutos
+      (40% / 35%) para no romper CI antes de tiempo.
+    - `scripts/run-code-quality.ps1` puede usar este archivo pasando
+      `--settings coverage.target.runsettings` cuando se quiera validar
+      el target final (después de Phase 12).
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <!-- OpenCover format includes cyclomatic complexity for CRAP scores -->
+          <Format>cobertura,opencover</Format>
+
+          <!-- Exclude test and benchmark assemblies -->
+          <Exclude>[*.Tests]*,[*.Benchmark]*,[*.Migrations]*</Exclude>
+
+          <!-- Exclude generated code, obsolete members, and explicit exclusions -->
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+
+          <!-- Exclude source-generated files, Blazor generated code, and migrations -->
+          <ExcludeByFile>**/obj/**/*,**/*.g.cs,**/*.designer.cs,**/*.razor.g.cs,**/*.razor.css.g.cs,**/Migrations/**/*</ExcludeByFile>
+
+          <!-- Exclude test projects -->
+          <IncludeTestAssembly>false</IncludeTestAssembly>
+
+          <!-- Optimization flags -->
+          <SingleHit>false</SingleHit>
+          <UseSourceLink>true</UseSourceLink>
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+
+  <!-- Coverlet thresholds: TARGET Constitución v1.1.0 §V.5 -->
+  <CoverletCollector>
+    <Format>cobertura,opencover,json</Format>
+    <Format>json,cobertura,lcov,teamcity,opencover</Format>
+    <Exclude>[*.Tests]*,[*.Benchmark]*,[*.Migrations]*</Exclude>
+    <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+    <ExcludeByFile>**/obj/**/*,**/*.g.cs,**/*.designer.cs,**/*.razor.g.cs,**/*.razor.css.g.cs,**/Migrations/**/*</ExcludeByFile>
+    <IncludeTestAssembly>false</IncludeTestAssembly>
+    <SingleHit>false</SingleHit>
+    <UseSourceLink>true</UseSourceLink>
+    <SkipAutoProps>true</SkipAutoProps>
+    <!-- TARGET gates: 80% lineas / 75% branches. Bloquea el build si no se cumplen. -->
+    <Threshold>80</Threshold>
+    <ThresholdType>Line</ThresholdType>
+    <ThresholdStat>Total</ThresholdStat>
+    <Threshold>75</Threshold>
+    <ThresholdType>Branch</ThresholdType>
+    <ThresholdStat>Total</ThresholdStat>
+    <Threshold>100</Threshold>
+    <ThresholdType>Method</ThresholdType>
+    <ThresholdStat>Total</ThresholdStat>
+  </CoverletCollector>
+</RunSettings>
