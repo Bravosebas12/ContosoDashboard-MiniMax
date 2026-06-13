@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- T001+T007: Tests E2E UI con Playwright (Nivel 7 de la pirámide).
+       Ver specs/001-documents-management/tasks.md T001, T007, T088, T135. -->
+
+  <PropertyGroup>
+    <RootNamespace>ContosoDashboard.Tests.E2E.UI</RootNamespace>
+    <AssemblyName>ContosoDashboard.Tests.E2E.UI</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" Version="2.9.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.48.0" />
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ContosoDashboard\ContosoDashboard.csproj" />
+  </ItemGroup>
+
+</Project>

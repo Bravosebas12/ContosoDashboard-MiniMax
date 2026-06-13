@@ -78,6 +78,7 @@ ContosoDashboard is built using ASP.NET Core 8.0 with Blazor Server and provides
 - **Data Models**: Complete entity framework models for Users, Tasks, Projects, Notifications, and Announcements
 - **Business Services**: Service layer for all core functionality (Tasks, Projects, Users, Notifications, Dashboard)
 - **Database Context**: EF Core DbContext with relationships, indexes, and seed data
+- **Document Upload and Management** — Ver [Document Upload](#document-upload--management) más abajo.
 
 ### 🔧 Technical Stack
 
@@ -89,6 +90,89 @@ ContosoDashboard is built using ASP.NET Core 8.0 with Blazor Server and provides
 - **Styling**: Bootstrap 5.3 with Bootstrap Icons
 - **Architecture**: Clean separation of concerns with Models, Services, Data, and Pages layers
 - **Security**: IDOR protection, service-level authorization, `[Authorize]` attributes
+
+---
+
+## Document Upload & Management
+
+Feature `001-documents-management` — implementación local-only de subida, organización, descarga, compartición y eliminación de documentos con integración a tareas y dashboard.
+
+### Capacidades
+
+- **Subir documentos** (PDF, Office, txt, JPEG, PNG; ≤ 25 MB) con metadatos (título, descripción, categoría, tags) y validación por extensión + magic bytes.
+- **Adjuntar a proyectos** (PM/Team Lead/owner) con notificación automática a los miembros del proyecto.
+- **Adjuntar a tareas** con snapshot del `ProjectId` del task (no se re-evalúa si el task cambia de proyecto).
+- **Buscar y filtrar** por título, descripción, tags, categoría, proyecto y rango de fechas.
+- **Descargar y previsualizar** PDFs e imágenes inline con sandbox CSP (`sandbox allow-same-origin`).
+- **Compartir** documentos con usuarios específicos (Read) y revocar accesos (soft delete vía `RevokedAt`).
+- **Restricción PM**: Un Project Manager solo puede compartir dentro de su proyecto (per Clarifications Q1).
+- **Editar metadata** (título, descripción, categoría, tags) y **reemplazar archivo** manteniendo el `DocumentId` (last-writer-wins).
+- **Eliminar** con autorización dueño O PM del proyecto; cascade a `DocumentShare`; auditoría preservada (`ActivityLog.DocumentId` se nulifica).
+- **Widget "Documentos recientes"** en el dashboard con cache de 5 min e invalidación tras upload/delete.
+- **Background cleanup** que elimina `ActivityLog` > 90 días diariamente (per FR-031).
+
+### Rutas principales
+
+| Ruta | Función |
+|---|---|
+| `/documents` | Listado de "Mis Documentos" con upload |
+| `/documents/details/{id}` | Vista detallada con acciones (download, preview, share, edit, replace, delete) |
+| `/documents/download/{id}` | Endpoint de descarga (Razor Page con headers de seguridad) |
+| `/documents/preview/{id}` | Endpoint de previsualización inline (Razor Page con CSP sandbox) |
+| `/documents/shared` | Documentos compartidos conmigo |
+| `/tasks/{id}` | Detalle de tarea con sección "Documentos adjuntos" |
+
+### Arquitectura
+
+```
+ContosoDashboard/Services/Documents/
+├── IDocumentService / DocumentService     ← Orquestación (upload, download, update, replace, delete, search, list)
+├── IDocumentShareService / DocumentShareService  ← Share con 3 reglas de autorización
+├── IDocumentShareService interface
+├── IFileStorageService / LocalFileStorageService  ← Abstracción (única impl: local filesystem)
+├── IAntivirusScanner / ClamAvScanner      ← Integración nClam
+├── IMimeTypeValidator / MimeTypeValidator ← Whitelist + magic bytes
+├── IFilePathBuilder / FilePathBuilder     ← Path generation seguro
+├── DocumentConstants                       ← Categorías, MIME whitelist, límites
+├── IActivityLogService / ActivityLogService ← Logging estructurado
+└── IActivityLogCleanupService / ActivityLogCleanupService  ← Retención 90 días
+
+ContosoDashboard/Services/
+└── ActivityLogCleanupBackgroundService    ← BackgroundService que corre cada 24h
+```
+
+### Seguridad
+
+- **Defense in depth de 3 capas**: `[Authorize(Policy = "Employee")]` en páginas + re-validación de ownership en `IDocumentService.UserHasAccessAsync` + reglas de negocio en `IDocumentShareService`.
+- **Path traversal**: GUID-based paths con regex `^[\w\-]+/([\w\-]+|personal)/[a-f0-9\-]{36}\.\w+$`.
+- **MIME spoofing**: Validación por magic bytes (no se confía en el `Content-Type` del cliente).
+- **AV pre-persistence**: ClamAV scan antes de escribir el archivo en disco.
+- **Atomicidad**: Transacción explícita en delete con rollback; rollback de archivo en upload si la DB falla.
+- **Headers de seguridad**: CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff en `Program.cs` + headers explícitos reforzados en download/preview.
+- **Auditoría**: `ActivityLog` con eventos `document.*` y metadata JSON; retención 90 días con background cleanup.
+
+### Performance
+
+- `IMemoryCache` con TTL 5 min para dashboard (summary, recent-docs, count)
+- Invalidación explícita tras upload/delete
+- `AsNoTracking()` en queries read-only
+- EF Core paginación (25 items por página default, max 50)
+- Índices en FKs, categorías, `UploadedAt DESC, DocumentId DESC`
+
+### Accesibilidad
+
+- `aria-label` en todos los botones icon-only (download, view, share, revoke)
+- `aria-hidden="true"` en iconos decorativos
+- `role="dialog"`, `aria-modal="true"`, `aria-labelledby` en modales
+- Navegación por teclado funcional (Blazor nativo + Bootstrap focus management)
+
+### Known gaps
+
+- **Test framework**: Los 7 proyectos de tests (`.Tests.Unit`, `.Tests.Components`, `.Tests.Integration`, etc.) no existen aún. Esto bloquea coverage/mutation/performance/E2E gates per Constitución v1.1.0.
+- **Vulnerabilidades NuGet**: 8 vulnerabilidades conocidas en dependencias externas (no bloqueante para training).
+- **CSP permisivo**: `script-src 'unsafe-inline' 'unsafe-eval'` requerido por Blazor Server.
+
+Ver [CHANGELOG.md](CHANGELOG.md) y [SECURITY-AUDIT.md](SECURITY-AUDIT.md) para más detalles.
 
 ## Architecture Principles
 

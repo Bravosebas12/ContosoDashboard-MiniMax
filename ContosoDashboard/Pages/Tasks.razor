@@ -123,9 +123,9 @@
                                 }
                             </td>
                             <td>
-                                <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewTaskDetails(task.TaskId)">
-                                    <i class="bi bi-eye"></i>
-                                </button>
+                                <a href="/tasks/@task.TaskId" class="btn btn-sm btn-outline-primary" title="Ver detalles de @task.Title" aria-label="Ver detalles de @task.Title">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </a>
                             </td>
                         </tr>
                     }
@@ -187,7 +187,9 @@
 
     private void ViewTaskDetails(int taskId)
     {
-        // TODO: Navigate to task details or show modal
+        // La navegación se hace via <a href="/tasks/{id}"> en el botón Ver.
+        // Esta función queda obsoleta pero la conservamos para evitar roturas si se referenciaba.
+        _ = taskId; // suppress unused warning
     }
 
     private string GetPriorityColor(TaskPriority priority)

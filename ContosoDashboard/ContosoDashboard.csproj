@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>contoso-dashboard</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +16,8 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Identity.Web" Version="2.15.0" />
     <PackageReference Include="Microsoft.Identity.Web.UI" Version="2.15.0" />
+    <PackageReference Include="nClam" Version="4.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

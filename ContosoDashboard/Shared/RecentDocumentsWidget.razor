@@ -1,0 +1,118 @@
+@* Widget del dashboard que muestra los N documentos más recientes subidos por el usuario. *@
+@* Ver T120 (US8 — Integración con tareas y dashboard). *@
+@using Microsoft.AspNetCore.Components.Authorization
+@using ContosoDashboard.Services
+@using ContosoDashboard.Services.Documents
+
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-file-earmark-clock"></i> Recent documents
+        </h5>
+        <a href="/documents" class="btn btn-sm btn-outline-primary">View all</a>
+    </div>
+    <div class="card-body">
+        @if (_loading)
+        {
+            <p class="text-muted small mb-0"><em>Loading recent documents...</em></p>
+        }
+        else if (_errorMessage != null)
+        {
+            <div class="alert alert-warning small mb-0">@_errorMessage</div>
+        }
+        else if (_recentDocs == null || _recentDocs.Count == 0)
+        {
+            <p class="text-muted small mb-0">
+                <i class="bi bi-info-circle"></i>
+                You haven't uploaded any documents yet.
+            </p>
+        }
+        else
+        {
+            <ul class="list-group list-group-flush">
+                @foreach (var doc in _recentDocs)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div class="flex-grow-1 me-2" style="min-width: 0;">
+                            <a href="/documents/details/@doc.DocumentId" class="text-decoration-none">
+                                <strong class="d-block text-truncate">@doc.Title</strong>
+                            </a>
+                            <small class="text-muted">
+                                <span class="badge bg-secondary me-1">@doc.Category</span>
+                                <span>@FormatSize(doc.FileSize)</span>
+                                <span class="mx-1">·</span>
+                                <span title="@doc.UploadedAt.ToString("yyyy-MM-dd HH:mm") UTC">@FormatRelativeTime(doc.UploadedAt)</span>
+                            </small>
+                        </div>
+                        <a href="/documents/download/@doc.DocumentId" class="btn btn-sm btn-outline-secondary flex-shrink-0" title="Download @doc.Title" aria-label="Download @doc.Title">
+                            <i class="bi bi-download" aria-hidden="true"></i>
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>Número máximo de documentos a mostrar (default 5).</summary>
+    [Parameter] public int Count { get; set; } = 5;
+
+    [Inject] private IDashboardService DashboardService { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthState { get; set; } = default!;
+
+    private List<RecentDocumentDto>? _recentDocs;
+    private bool _loading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    /// <summary>Permite al componente padre forzar una recarga (p. ej. tras un upload).</summary>
+    public async Task RefreshAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        try
+        {
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            var userId = ExtractUserId(auth.User);
+            if (userId == 0) { _recentDocs = new List<RecentDocumentDto>(); return; }
+
+            _recentDocs = await DashboardService.GetRecentDocumentsAsync(userId, Count);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error loading recent documents: {ex.Message}";
+            _recentDocs = new List<RecentDocumentDto>();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static int ExtractUserId(System.Security.Claims.ClaimsPrincipal user)
+    {
+        var nameId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(nameId, out var id) ? id : 0;
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:N1} KB";
+        return $"{bytes / 1024.0 / 1024.0:N2} MB";
+    }
+
+    private static string FormatRelativeTime(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+        if (timeSpan.TotalMinutes < 1) return "hace instantes";
+        if (timeSpan.TotalMinutes < 60) return $"hace {(int)timeSpan.TotalMinutes} min";
+        if (timeSpan.TotalHours < 24) return $"hace {(int)timeSpan.TotalHours} h";
+        if (timeSpan.TotalDays < 7) return $"hace {(int)timeSpan.TotalDays} d";
+        return dateTime.ToString("MMM dd");
+    }
+}

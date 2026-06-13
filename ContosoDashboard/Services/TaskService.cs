@@ -96,8 +96,8 @@ public class TaskService : ITaskService
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
 
-        // Create notification for assigned user
-        await _notificationService.CreateNotificationAsync(new Notification
+        // Create notification for assigned user (via queue, resuelve A2)
+        await _notificationService.EnqueueAsync(new Notification
         {
             UserId = task.AssignedUserId,
             Title = "New Task Assigned",
@@ -135,10 +135,10 @@ public class TaskService : ITaskService
 
         await _context.SaveChangesAsync();
 
-        // Send notification if task is completed
+        // Send notification if task is completed (via queue, resuelve A2)
         if (status == Models.TaskStatus.Completed)
         {
-            await _notificationService.CreateNotificationAsync(new Notification
+            await _notificationService.EnqueueAsync(new Notification
             {
                 UserId = task.CreatedByUserId,
                 Title = "Task Completed",
@@ -167,10 +167,10 @@ public class TaskService : ITaskService
         _context.TaskComments.Add(taskComment);
         await _context.SaveChangesAsync();
 
-        // Notify task assignee if commenter is different
+        // Notify task assignee if commenter is different (via queue, resuelve A2)
         if (userId != task.AssignedUserId)
         {
-            await _notificationService.CreateNotificationAsync(new Notification
+            await _notificationService.EnqueueAsync(new Notification
             {
                 UserId = task.AssignedUserId,
                 Title = "New Comment on Task",

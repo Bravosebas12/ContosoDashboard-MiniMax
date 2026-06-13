@@ -1,0 +1,81 @@
+# =============================================================================
+# .dockerignore — keep the build context small and reproducible.
+# Reduces COPY time, image size, and the risk of leaking secrets.
+# =============================================================================
+
+# .NET build artifacts
+**/bin/
+**/obj/
+**/out/
+**/publish/
+**/*.user
+**/*.suo
+**/*.userosscache
+**/*.userprefs
+**/*.sln.docstates
+**/[Dd]ebug/
+**/[Rr]elease/
+**/[Bb]uild[Ll]og.*
+
+# Test artifacts
+**/TestResults/
+**/coverage*/
+**/coverage/
+**/.coverage
+**/*.coverage
+**/quality-reports/
+**/.stryker-config/
+
+# IDE / editor
+**/.vs/
+**/.vscode/
+**/.idea/
+**/*.swp
+**/.DS_Store
+**/Thumbs.db
+
+# Git & CI metadata
+**/.git/
+**/.gitattributes
+**/.gitignore
+**/.github/
+**/.gitlab-ci.yml
+**/.azure-pipelines.yml
+
+# Local secrets & state
+**/secrets.json
+**/appsettings.*.Local.json
+**/appsettings.Development.json
+**/.env
+**/.env.local
+**/*.pfx
+**/*.p12
+**/*.key
+
+# User-uploaded data (recreated by the container at runtime)
+**/AppData/uploads/
+**/AppData/clamav-db/
+**/AppData/logs/
+
+# Documentation (rebuilt from source)
+README.md
+CHANGELOG.md
+code-quality-report.md
+SECURITY-AUDIT.md
+LICENSE-CODE
+**/*.md
+
+# Node / front-end tooling (not used in this project, but safe to ignore)
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# Other
+**/StakeholderDocs/
+**/specs/
+**/scripts/
+**/.agents/
+**/.specify/
+**/.config/
+**/skills-lock.json

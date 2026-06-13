@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-net/master/src/Stryker.CLI/StrykerConfig.schema.json",
+  "stryker-config": {
+    "reporters": [
+      "html",
+      "progress",
+      "cleartext",
+      "json"
+    ],
+    "project": "../ContosoDashboard/ContosoDashboard.csproj",
+    "solution": "../ContosoDashboard.slnx",
+    "test-projects": [
+      "./ContosoDashboard.Tests.Unit/ContosoDashboard.Tests.Unit.csproj"
+    ],
+    "thresholds": {
+      "break": 70,
+      "high": 80,
+      "low": 60
+    },
+    "mutate": [
+      "../ContosoDashboard/Services/Documents/**/*.cs",
+      "../ContosoDashboard/Domain/Documents/**/*.cs",
+      "!../ContosoDashboard/**/Migrations/**/*.cs",
+      "!../ContosoDashboard/**/obj/**/*.cs",
+      "!../ContosoDashboard/**/bin/**/*.cs"
+    ]
+  }
+}

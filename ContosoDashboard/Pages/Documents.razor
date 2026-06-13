@@ -1,0 +1,211 @@
+@* Main page for "My Documents" — listing, search, filters, upload. See FR-013, FR-014, FR-016. *@
+@page "/documents"
+@attribute [Authorize(Policy = "Employee")]
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@using ContosoDashboard.Models
+@using ContosoDashboard.Services.Documents
+@inject IDocumentService DocumentService
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>My Documents</PageTitle>
+
+<div class="container mt-4">
+    <h1>My Documents</h1>
+
+    <DocumentUploadComponent OnUploaded="HandleUploaded" />
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label small text-muted">Search</label>
+                    <input type="search" class="form-control" placeholder="Search by title, description or tags..."
+                           @bind="_searchTerm" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">Category</label>
+                    <select class="form-select" @bind="_filterCategory" @bind:after="OnFilterChanged">
+                        <option value="">All categories</option>
+                        @foreach (var cat in DocumentConstants.AllowedCategories)
+                        {
+                            <option value="@cat">@cat</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">Sort by</label>
+                    <select class="form-select" @bind="_sortByRaw" @bind:after="OnFilterChanged">
+                        <option value="@DocumentSortBy.UploadedAt">Most recent</option>
+                        <option value="@DocumentSortBy.Title">Title (A-Z)</option>
+                        <option value="@DocumentSortBy.FileSize">Size</option>
+                        <option value="@DocumentSortBy.Category">Category</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button class="btn btn-outline-secondary w-100" @onclick="ResetFilters" title="Reset filters">Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (_documents == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else if (_documents.Items.Count == 0)
+    {
+        <div class="alert alert-info">
+            @if (HasActiveFilters)
+            {
+                <span>No documents match your search. <button class="btn btn-link p-0" @onclick="ResetFilters">Clear filters</button> to see all.</span>
+            }
+            else
+            {
+                <span>You don't have any documents yet. Upload your first one above.</span>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th @onclick="() => SortBy(DocumentSortBy.Title)" style="cursor:pointer">Title @SortIndicator(DocumentSortBy.Title)</th>
+                            <th>Category</th>
+                            <th>Size</th>
+                            <th>Type</th>
+                            <th @onclick="() => SortBy(DocumentSortBy.UploadedAt)" style="cursor:pointer">Uploaded @SortIndicator(DocumentSortBy.UploadedAt)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var d in _documents.Items)
+                        {
+                            <tr>
+                                <td>@d.Title</td>
+                                <td><span class="badge bg-secondary">@d.Category</span></td>
+                                <td>@((d.FileSize / 1024.0).ToString("N1")) KB</td>
+                                <td><small>@d.FileType</small></td>
+                                <td>@d.UploadedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>
+                                    <a href="/documents/details/@d.DocumentId" class="btn btn-sm btn-outline-primary" aria-label="View details of @d.Title">View details</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <nav>
+                    <ul class="pagination">
+                        <li class="page-item @(_documents.HasPrevious ? "" : "disabled")">
+                            <button class="page-link" @onclick="PrevPage">Previous</button>
+                        </li>
+                        <li class="page-item active"><span class="page-link">@_documents.Page / @_documents.TotalPages</span></li>
+                        <li class="page-item @(_documents.HasNext ? "" : "disabled")">
+                            <button class="page-link" @onclick="NextPage">Next</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private PagedResult<DocumentDto>? _documents;
+    private int _currentPage = 1;
+    private DocumentSortBy _sortBy = DocumentSortBy.UploadedAt;
+    private DocumentSortBy _sortByRaw = DocumentSortBy.UploadedAt;
+    private SortDirection _sortDir = SortDirection.Desc;
+    private string _searchTerm = string.Empty;
+    private string _filterCategory = string.Empty;
+
+    private bool HasActiveFilters => !string.IsNullOrWhiteSpace(_searchTerm) || !string.IsNullOrWhiteSpace(_filterCategory);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        var userId = ExtractUserId(auth.User);
+        if (userId == 0) return;
+
+        if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            _documents = await DocumentService.SearchAsync(
+                _searchTerm.Trim(), _currentPage, 25, userId, default);
+        }
+        else
+        {
+            var filter = new DocumentListFilter(
+                UploadedByUserId: userId,
+                Category: string.IsNullOrEmpty(_filterCategory) ? null : _filterCategory);
+            _documents = await DocumentService.ListAsync(
+                filter, _sortBy, _sortDir, _currentPage, 25, userId, default);
+        }
+    }
+
+    private async Task HandleUploaded(DocumentDto _)
+    {
+        _currentPage = 1;
+        await LoadAsync();
+    }
+
+    private System.Timers.Timer? _debounce;
+
+    private void OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        _debounce?.Stop();
+        _debounce?.Dispose();
+        _debounce = new System.Timers.Timer(300) { AutoReset = false };
+        _debounce.Elapsed += async (_, _) => await InvokeAsync(TriggerSearch);
+        _debounce.Start();
+    }
+
+    private async Task TriggerSearch()
+    {
+        _currentPage = 1;
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task OnFilterChanged()
+    {
+        _sortBy = _sortByRaw;
+        _currentPage = 1;
+        await LoadAsync();
+    }
+
+    private async Task ResetFilters()
+    {
+        _searchTerm = string.Empty;
+        _filterCategory = string.Empty;
+        _sortBy = DocumentSortBy.UploadedAt;
+        _sortByRaw = DocumentSortBy.UploadedAt;
+        _currentPage = 1;
+        await LoadAsync();
+    }
+
+    private async Task SortBy(DocumentSortBy by)
+    {
+        if (_sortBy == by) _sortDir = _sortDir == SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc;
+        else { _sortBy = by; _sortByRaw = by; _sortDir = SortDirection.Asc; }
+        await LoadAsync();
+    }
+
+    private string SortIndicator(DocumentSortBy by) => _sortBy == by ? (_sortDir == SortDirection.Asc ? " ▲" : " ▼") : "";
+
+    private async Task PrevPage() { if (_documents?.HasPrevious == true) { _currentPage--; await LoadAsync(); } }
+    private async Task NextPage() { if (_documents?.HasNext == true) { _currentPage++; await LoadAsync(); } }
+
+    private void Download(int id) => Nav.NavigateTo($"/DocumentFiles/Download?id={id}", forceLoad: false);
+
+    private static int ExtractUserId(ClaimsPrincipal user)
+    {
+        var nameId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(nameId, out var id) ? id : 0;
+    }
+}

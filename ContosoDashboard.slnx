@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/ContosoDashboard.Tests.Components/ContosoDashboard.Tests.Components.csproj" />
+    <Project Path="tests/ContosoDashboard.Tests.Contract/ContosoDashboard.Tests.Contract.csproj" />
+    <Project Path="tests/ContosoDashboard.Tests.E2E.Api/ContosoDashboard.Tests.E2E.Api.csproj" />
+    <Project Path="tests/ContosoDashboard.Tests.E2E.UI/ContosoDashboard.Tests.E2E.UI.csproj" />
+    <Project Path="tests/ContosoDashboard.Tests.Integration/ContosoDashboard.Tests.Integration.csproj" />
+    <Project Path="tests/ContosoDashboard.Tests.Performance/ContosoDashboard.Tests.Performance.csproj" />
+    <Project Path="tests/ContosoDashboard.Tests.Unit/ContosoDashboard.Tests.Unit.csproj" />
+  </Folder>
+  <Project Path="ContosoDashboard/ContosoDashboard.csproj" />
+</Solution>

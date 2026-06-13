@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- T001+T006: Tests E2E de API con RestSharp + WAF (Nivel 6 de la pirámide).
+       Ver specs/001-documents-management/tasks.md T001, T006, T052. -->
+
+  <PropertyGroup>
+    <RootNamespace>ContosoDashboard.Tests.E2E.Api</RootNamespace>
+    <AssemblyName>ContosoDashboard.Tests.E2E.Api</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" Version="2.9.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="RestSharp" Version="112.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.10" />
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ContosoDashboard\ContosoDashboard.csproj" />
+  </ItemGroup>
+
+</Project>

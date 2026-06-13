@@ -1,0 +1,122 @@
+# T015: .editorconfig raíz con Roslyn analyzer rules
+# Ver specs/001-documents-management/tasks.md T015.
+# Alineado con Constitución IV (Estándares de Código).
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 140
+
+[*.{razor,cshtml}]
+indent_size = 4
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+# ====================== C# Style Rules ======================
+
+[*.cs]
+# Charset y convenciones .NET
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+
+# Espaciado
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_around_binary_operators = before_and_after
+csharp_space_between_method_declaration_empty_parameter_list_parentheses = false
+csharp_space_between_method_call_name_and_opening_parenthesis = false
+
+# Preferencias de código
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_prefer_method_group_conversion = true:suggestion
+csharp_style_prefer_top_level_statements = true:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_constructors = false:suggestion
+csharp_style_expression_bodied_operators = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_indexers = true:suggestion
+csharp_style_expression_bodied_accessors = true:suggestion
+csharp_style_expression_bodied_lambdas = true:suggestion
+csharp_style_expression_bodied_local_functions = when_on_single_line:suggestion
+
+# var preferences
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# Pattern matching
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+
+# Null checks
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+
+# ====================== .NET Roslyn Analyzers (Constitution IV) ======================
+
+# A01 — IDisposable usage
+dotnet_diagnostic.CA1031.severity = suggestion  # No catch general exceptions (warning es muy ruidoso)
+
+# A03 — input validation
+dotnet_diagnostic.CA1062.severity = warning  # Validate arguments of public methods
+
+# A04 — design
+dotnet_diagnostic.CA1050.severity = warning  # Declare types in namespaces
+dotnet_diagnostic.CA1822.severity = warning  # Mark members as static
+dotnet_diagnostic.CA2007.severity = warning  # ConfigureAwait
+dotnet_diagnostic.CA2016.severity = warning  # Forward CancellationToken
+dotnet_diagnostic.CA2234.severity = warning  # Pass System.Uri objects instead of strings
+
+# Naming conventions
+dotnet_diagnostic.CA1707.severity = suggestion
+dotnet_diagnostic.CA1716.severity = suggestion
+dotnet_diagnostic.CA1721.severity = suggestion
+dotnet_diagnostic.CA1724.severity = suggestion
+
+# Performance
+dotnet_diagnostic.CA1825.severity = warning  # Array.Empty<T>()
+dotnet_diagnostic.CA1827.severity = warning  # Don't use Count/Any when possible
+dotnet_diagnostic.CA1829.severity = warning  # Use Length/Count property
+dotnet_diagnostic.CA1834.severity = warning  # StringBuilder.Append(char)
+
+# Reliability
+dotnet_diagnostic.CA1816.severity = warning  # Call GC.SuppressFinalize correctly
+dotnet_diagnostic.CA2013.severity = warning  # Don't use ReferenceEquals with value types
+
+# Security
+dotnet_diagnostic.CA2100.severity = warning  # Review SQL queries for security
+dotnet_diagnostic.CA2300.severity = warning  # Insecure deserializer BinaryFormatter
+dotnet_diagnostic.CA2301.severity = warning  # BinaryFormatter without binder
+dotnet_diagnostic.CA2302.severity = warning  # BinaryFormatter Deserialize
+
+# Globalization
+dotnet_diagnostic.CA1303.severity = suggestion  # Do not pass literals as localized
+dotnet_diagnostic.CA1304.severity = warning    # Specify CultureInfo
+dotnet_diagnostic.CA1305.severity = warning    # Specify IFormatProvider
+dotnet_diagnostic.CA1307.severity = warning    # Specify StringComparison
+dotnet_diagnostic.CA1308.severity = warning    # Normalize strings to uppercase
+dotnet_diagnostic.CA1310.severity = warning    # Specify StringComparison
+
+# ====================== Test projects (más permisivos) ======================
+
+[tests/**/*.cs]
+# En tests permitimos algunas cosas que serían warnings en producción
+dotnet_diagnostic.CA1707.severity = none  # Identifiers should not contain underscores
+dotnet_diagnostic.CA2007.severity = none  # ConfigureAwait (no relevante en xUnit)

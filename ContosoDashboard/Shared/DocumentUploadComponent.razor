@@ -1,0 +1,203 @@
+@* Reusable document upload component. See FR-001..FR-012. *@
+@* Blazor MemoryStream pattern: copy the stream to a MemoryStream immediately to avoid disposal issues. *@
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using ContosoDashboard.Models
+@using ContosoDashboard.Services
+@using ContosoDashboard.Services.Documents
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+
+<div class="card mb-3">
+    <div class="card-header">
+        <h5 class="mb-0">Adjuntar documento</h5>
+    </div>
+    <div class="card-body">
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger" role="alert">@_errorMessage</div>
+        }
+        @if (_isUploading)
+        {
+            <div class="progress mb-3" role="progressbar" aria-valuenow="@_progress" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar" style="width: @(_progress)%">@_progress%</div>
+            </div>
+        }
+        <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label">Archivo <span class="text-danger">*</span></label>
+                <InputFile OnChange="HandleFileSelected" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" />
+                @if (_selectedFile != null)
+                {
+                    <small class="form-text text-muted">@_selectedFile.Name (@((_selectedFile.Size / 1024.0).ToString("N1")) KB)</small>
+                }
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Título <span class="text-danger">*</span></label>
+                <InputText @bind-Value="_model.Title" class="form-control" maxlength="200" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Descripción</label>
+                <InputTextArea @bind-Value="_model.Description" class="form-control" maxlength="2000" rows="2" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Categoría <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="_model.Category" class="form-control" required>
+                    <option value="">— Seleccionar —</option>
+                    @foreach (var cat in DocumentConstants.AllowedCategories)
+                    {
+                        <option value="@cat">@cat</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Etiquetas (separadas por comas, máx. 5)</label>
+                <InputText @bind-Value="_model.TagsRaw" class="form-control" placeholder="ej. presupuesto, t4, cliente-a" />
+            </div>
+            @if (ShowProjectSelector)
+            {
+                <div class="mb-3">
+                    <label class="form-label">Proyecto (opcional)</label>
+                    <InputSelect @bind-Value="_model.ProjectId" class="form-control" TValue="int?">
+                        <option value="">— Ninguno (personal) —</option>
+                        @if (_availableProjects != null)
+                        {
+                            @foreach (var p in _availableProjects)
+                            {
+                                <option value="@p.ProjectId">@p.Name</option>
+                            }
+                        }
+                    </InputSelect>
+                </div>
+            }
+            <button type="submit" class="btn btn-primary" disabled="@(_isUploading || _selectedFile == null)">
+                @if (_isUploading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <span>Subiendo...</span>
+                }
+                else
+                {
+                    <span>Adjuntar</span>
+                }
+            </button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public EventCallback<DocumentDto> OnUploaded { get; set; }
+    [Parameter] public int? PreSelectedProjectId { get; set; }
+
+    /// <summary>
+    /// Si se especifica, el documento se adjunta a esta tarea (T118: snapshot del ProjectId del task).
+    /// Cuando se establece, se oculta el selector de proyecto y se vincula el doc a la tarea.
+    /// </summary>
+    [Parameter] public int? PreSelectedTaskId { get; set; }
+    [Parameter] public bool ShowProjectSelector { get; set; } = true;
+
+    [Inject] private IDocumentService DocumentService { get; set; } = default!;
+    [Inject] private IProjectService ProjectService { get; set; } = default!;
+    [Inject] private IDashboardService DashboardService { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthState { get; set; } = default!;
+
+    private IBrowserFile? _selectedFile;
+    private readonly UploadModel _model = new();
+    private List<Project>? _availableProjects;
+    private bool _isUploading;
+    private int _progress;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Si hay PreSelectedTaskId, el selector de proyecto se debe ocultar
+        // y se snapshotea el ProjectId del task (T118).
+        if (PreSelectedTaskId.HasValue) ShowProjectSelector = false;
+        if (ShowProjectSelector)
+        {
+            try { _availableProjects = await ProjectService.GetUserProjectsAsync(0) ?? new(); }
+            catch { _availableProjects = new(); }
+        }
+        if (PreSelectedProjectId.HasValue) _model.ProjectId = PreSelectedProjectId;
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        _selectedFile = e.File;
+        _errorMessage = null;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_selectedFile == null) { _errorMessage = "Selecciona un archivo."; return; }
+        if (string.IsNullOrWhiteSpace(_model.Title)) { _errorMessage = "El título es obligatorio."; return; }
+        if (string.IsNullOrWhiteSpace(_model.Category)) { _errorMessage = "Selecciona una categoría."; return; }
+        if (_selectedFile.Size > DocumentConstants.MaxFileSizeBytes) { _errorMessage = $"Tamaño máximo: {DocumentConstants.MaxFileSizeBytes / 1024 / 1024} MB."; return; }
+
+        _isUploading = true;
+        _progress = 0;
+        _errorMessage = null;
+
+        try
+        {
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            var userId = ExtractUserId(auth.User);
+
+            // Patrón Blazor: extraer metadata, copiar a MemoryStream, limpiar referencia
+            var fileName = _selectedFile.Name;
+            var fileSize = _selectedFile.Size;
+            var contentType = _selectedFile.ContentType;
+
+            await using var memoryStream = new MemoryStream();
+            await using (var fileStream = _selectedFile.OpenReadStream(DocumentConstants.MaxFileSizeBytes))
+            {
+                await fileStream.CopyToAsync(memoryStream);
+            }
+            memoryStream.Position = 0;
+            _selectedFile = null; // Liberar referencia
+            _progress = 50;
+
+            var tags = string.IsNullOrWhiteSpace(_model.TagsRaw) ? null : _model.TagsRaw;
+            var result = await DocumentService.UploadAsync(
+                memoryStream, fileName, contentType,
+                _model.Title, _model.Description, _model.Category, tags,
+                _model.ProjectId, PreSelectedTaskId, userId, null, default);
+
+            // T124: invalidar cache del dashboard para que el widget "Documentos recientes" se actualice.
+            DashboardService.InvalidateUserDashboardAsync(userId);
+
+            _progress = 100;
+            await OnUploaded.InvokeAsync(new DocumentDto(
+                result.DocumentId, _model.Title, _model.Description, _model.Category, result.FilePath,
+                fileSize, contentType, tags, DateTime.UtcNow, userId, _model.ProjectId, null, null,
+                DocumentAvStatus.Clean, null, fileName));
+
+            _model.Reset();
+        }
+        catch (DocumentValidationException ex) { _errorMessage = string.Join("; ", ex.Errors); }
+        catch (DocumentInfectedException ex) { _errorMessage = ex.Message; }
+        catch (Exception ex) { _errorMessage = $"Error al adjuntar: {ex.Message}"; }
+        finally
+        {
+            _isUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private static int ExtractUserId(ClaimsPrincipal user)
+    {
+        var nameId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(nameId, out var id) ? id : 0;
+    }
+
+    private class UploadModel
+    {
+        [Required, MaxLength(200)] public string Title { get; set; } = string.Empty;
+        [MaxLength(2000)] public string? Description { get; set; }
+        [Required] public string Category { get; set; } = string.Empty;
+        public string? TagsRaw { get; set; }
+        public int? ProjectId { get; set; }
+        public void Reset() { Title = string.Empty; Description = null; Category = string.Empty; TagsRaw = null; ProjectId = null; }
+    }
+}

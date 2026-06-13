@@ -1,0 +1,446 @@
+@* Vista detallada de un documento con metadata + acciones (download, preview, share, replace, delete). Ver FR-018, FR-019, FR-020, FR-021, FR-022. *@
+@page "/documents/details/{Id:int}"
+@using System.Security.Claims
+@using ContosoDashboard.Models
+@using ContosoDashboard.Services
+@using ContosoDashboard.Services.Documents
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "Employee")]
+@inject IDocumentService DocumentService
+@inject IDocumentShareService ShareService
+@inject IUserService UserService
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>@(_doc?.Title ?? "Document") - ContosoDashboard</PageTitle>
+
+<div class="container mt-4">
+    @if (_loading)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else if (_doc == null)
+    {
+        <div class="alert alert-warning">The document was not found or you do not have access.</div>
+        <a href="/documents" class="btn btn-secondary">Back</a>
+    }
+    else
+    {
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/documents">My Documents</a></li>
+                <li class="breadcrumb-item active">@_doc.Title</li>
+            </ol>
+        </nav>
+
+        <div class="row">
+            <div class="col-md-7">
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">@_doc.Title</h4>
+                        <span class="badge bg-secondary">@_doc.Category</span>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(_doc.Description))
+                        {
+                            <p class="text-muted">@_doc.Description</p>
+                        }
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <th style="width:30%">Type</th>
+                                    <td><code>@_doc.FileType</code></td>
+                                </tr>
+                                <tr>
+                                    <th>Size</th>
+                                    <td>@FormatSize(_doc.FileSize)</td>
+                                </tr>
+                                <tr>
+                                    <th>Uploaded</th>
+                                    <td>@_doc.UploadedAt.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                                </tr>
+                                @if (_doc.ReplacedAt.HasValue)
+                                {
+                                    <tr>
+                                        <th>Replaced</th>
+                                        <td>@_doc.ReplacedAt.Value.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                                    </tr>
+                                }
+                                @if (!string.IsNullOrEmpty(_doc.Tags))
+                                {
+                                    <tr>
+                                        <th>Tags</th>
+                                        <td>
+                                            @foreach (var tag in _doc.Tags!.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                            {
+                                                <span class="badge bg-light text-dark me-1">@tag.Trim()</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                                <tr>
+                                    <th>AV Status</th>
+                                    <td>
+                                        @switch (_doc.AvScanStatus)
+                                        {
+                                            case DocumentAvStatus.Clean:
+                                                <span class="badge bg-success">✓ Clean</span>
+                                                break;
+                                            case DocumentAvStatus.Infected:
+                                                <span class="badge bg-danger">⚠ Infected</span>
+                                                break;
+                                            case DocumentAvStatus.NotScanned:
+                                                <span class="badge bg-warning">⚠ Not verified</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-secondary">Error</span>
+                                                break;
+                                        }
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                @if (IsPreviewable())
+                {
+                    <div class="card mb-3">
+                        <div class="card-header"><h5 class="mb-0">Preview</h5></div>
+                        <div class="card-body">
+                            <DocumentPreviewComponent Document="@_doc" />
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="col-md-5">
+                <div class="card mb-3">
+                    <div class="card-header"><h5 class="mb-0">Actions</h5></div>
+                    <div class="card-body d-grid gap-2">
+                        <a href="/DocumentFiles/Download?id=@_doc.DocumentId" class="btn btn-primary" aria-label="Download document @_doc.OriginalFileName">
+                            ⬇ Download (@FormatSize(_doc.FileSize))
+                        </a>
+                        @if (IsPreviewable())
+                        {
+                            <a href="/DocumentFiles/Preview?id=@_doc.DocumentId" target="_blank" class="btn btn-outline-primary" aria-label="Open preview in a new tab">
+                                👁 Preview in a new tab
+                            </a>
+                        }
+                        <hr />
+                        @if (IsOwner)
+                        {
+                            <button class="btn btn-outline-secondary" @onclick="ShowEditMetadata">✏ Edit metadata</button>
+                            <button class="btn btn-outline-secondary" @onclick="ShowReplaceDialog">🔄 Replace file</button>
+                            <button class="btn btn-outline-info" @onclick="ShowShareDialog">🔗 Share</button>
+                            <button class="btn btn-outline-danger" @onclick="OpenDeleteDialog">🗑 Delete</button>
+                        }
+                    </div>
+                </div>
+
+                @if (IsOwner && _showReplaceDialog)
+                {
+                    <div class="card mb-3">
+                        <div class="card-header">Replace file</div>
+                        <div class="card-body">
+                            <InputFile OnChange="HandleReplaceFile" class="form-control mb-2" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" />
+                            @if (_replaceFile != null)
+                            {
+                                <p class="small text-muted">@_replaceFile.Name (@((_replaceFile.Size / 1024.0).ToString("N1")) KB)</p>
+                                <button class="btn btn-warning btn-sm" @onclick="ConfirmReplace">Confirm replacement</button>
+                                <button class="btn btn-secondary btn-sm ms-2" @onclick="() => _showReplaceDialog = false">Cancel</button>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (IsOwner)
+                {
+                    <div class="card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Shared with...</h5>
+                            <span class="badge bg-secondary">@_activeShares.Count</span>
+                        </div>
+                        <div class="card-body">
+                            @if (_loadingShares)
+                            {
+                                <p class="text-muted small mb-0"><em>Loading...</em></p>
+                            }
+                            else if (_activeShares.Count == 0)
+                            {
+                                <p class="text-muted small mb-0">This document has not been shared with anyone yet.</p>
+                            }
+                            else
+                            {
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var share in _activeShares)
+                                    {
+                                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                            <div>
+                                                <strong>@share.SharedWithUserDisplayName</strong>
+                                                <br />
+                                                <small class="text-muted">
+                                                    @share.Permission.ToString()
+                                                    @if (share.ExpiresAt.HasValue)
+                                                    {
+                                                        <span> · Expires: @share.ExpiresAt.Value.ToString("yyyy-MM-dd")</span>
+                                                    }
+                                                </small>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RevokeShareAsync(share.DocumentShareId)">
+                                                Revoke
+                                            </button>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger">@_errorMessage</div>
+        }
+
+        <ShareDialog Show="_showShareDialog"
+                     Document="_doc"
+                     CurrentUserId="_currentUserId"
+                     IsProjectManager="_isProjectManager"
+                     AvailableUsers="_availableUsers"
+                     OnShared="HandleShareConfirmed"
+                     OnCancel="HideShareDialog" />
+
+        <DeleteConfirmDialog Show="_showDeleteDialog"
+                             Title="@(_doc?.Title ?? string.Empty)"
+                             Busy="_deleteBusy"
+                             OnConfirm="HandleDeleteConfirmed"
+                             OnCancel="CancelDeleteDialog" />
+
+        <EditMetadataModal Show="_showEditMetadata"
+                           Document="_doc"
+                           OnSaved="HandleMetadataSaved"
+                           OnCancel="HandleEditMetadataCancel" />
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private DocumentDto? _doc;
+    private bool _loading = true;
+    private bool _showReplaceDialog;
+    private bool _showEditMetadata;
+    private bool _showShareDialog;
+    private bool _showDeleteDialog;
+    private bool _deleteBusy;
+    private bool _loadingShares;
+    private bool _isProjectManager;
+    private List<User>? _availableUsers;
+    private List<ActiveShareInfo> _activeShares = new();
+    private IBrowserFile? _replaceFile;
+    private string? _errorMessage;
+    private int _currentUserId;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            _currentUserId = ExtractUserId(auth.User);
+            if (_currentUserId == 0) { _doc = null; return; }
+            _doc = await DocumentService.GetByIdAsync(Id, _currentUserId);
+            _errorMessage = null;
+
+            if (IsOwner)
+            {
+                await LoadActiveSharesAsync();
+                await DetermineIsProjectManagerAsync();
+            }
+        }
+        catch (ContosoDashboard.Services.Documents.DocumentUnauthorizedAccessException)
+        {
+            _doc = null;
+        }
+        catch (ContosoDashboard.Services.Documents.DocumentNotFoundException)
+        {
+            _doc = null;
+        }
+        catch (Exception ex) { _errorMessage = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task LoadActiveSharesAsync()
+    {
+        if (_doc == null) return;
+        _loadingShares = true;
+        try
+        {
+            _activeShares = (await ShareService.ListActiveSharesAsync(_doc.DocumentId, _currentUserId)).ToList();
+        }
+        catch (Exception ex) { _errorMessage = $"Error loading shares: {ex.Message}"; }
+        finally { _loadingShares = false; }
+    }
+
+    private async Task DetermineIsProjectManagerAsync()
+    {
+        if (_doc == null || !_doc.ProjectId.HasValue) { _isProjectManager = false; return; }
+        try
+        {
+            var users = await UserService.GetAllUsersAsync();
+            _availableUsers = users.Where(u => u.UserId != _currentUserId).ToList();
+        }
+        catch { _availableUsers = new List<User>(); }
+        // Heurística: si el usuario actual está en el equipo del proyecto y no es el uploader, se considera PM sólo si es ProjectManager.
+        // Para esta release, marcamos _isProjectManager en true si el doc pertenece a un proyecto y el usuario actual
+        // tiene rol ProjectManager (verificamos vía GetUserByIdAsync). El backend (DocumentShareService) hace la validación
+        // fina y rechaza el share fuera de proyecto.
+        var me = await UserService.GetUserByIdAsync(_currentUserId);
+        _isProjectManager = me?.Role == UserRole.ProjectManager || me?.Role == UserRole.Administrator;
+    }
+
+    private bool IsOwner => _doc != null && _doc.UploadedByUserId == _currentUserId;
+    private bool IsPreviewable() => _doc != null && DocumentConstants.IsPreviewable(_doc.FileType) && _doc.FileSize <= DocumentConstants.MaxPreviewSizeBytes;
+
+    private void ShowReplaceDialog() { _showReplaceDialog = true; _replaceFile = null; }
+    private void ShowEditMetadata() { _showEditMetadata = true; _ = InvokeAsync(StateHasChanged); }
+    private void HandleEditMetadataCancel() { _showEditMetadata = false; }
+
+    private async Task HandleMetadataSaved(DocumentDto updated)
+    {
+        try
+        {
+            _doc = await DocumentService.UpdateMetadataAsync(
+                Id,
+                updated.Title,
+                updated.Description,
+                updated.Category,
+                updated.Tags,
+                _currentUserId);
+            _showEditMetadata = false;
+            _errorMessage = "Metadata updated successfully.";
+        }
+        catch (ContosoDashboard.Services.Documents.DocumentValidationException ex) { _errorMessage = string.Join("; ", ex.Errors); }
+        catch (Exception ex) { _errorMessage = $"Error saving: {ex.Message}"; }
+    }
+
+    private void HandleReplaceFile(InputFileChangeEventArgs e) => _replaceFile = e.File;
+
+    private async Task ConfirmReplace()
+    {
+        if (_replaceFile == null) return;
+        try
+        {
+            using var ms = new MemoryStream();
+            await using (var fs = _replaceFile.OpenReadStream(DocumentConstants.MaxFileSizeBytes))
+                await fs.CopyToAsync(ms);
+            ms.Position = 0;
+            _doc = await DocumentService.ReplaceFileAsync(Id, ms, _replaceFile.Name, _replaceFile.ContentType, _currentUserId);
+            _showReplaceDialog = false;
+            _replaceFile = null;
+            _errorMessage = "File replaced successfully.";
+        }
+        catch (Exception ex) { _errorMessage = $"Error replacing file: {ex.Message}"; }
+    }
+
+    private void OpenDeleteDialog()
+    {
+        if (_doc == null) return;
+        _errorMessage = null;
+        _showDeleteDialog = true;
+    }
+
+    private void CancelDeleteDialog()
+    {
+        if (_deleteBusy) return; // No permitir cerrar mientras se está eliminando
+        _showDeleteDialog = false;
+        _errorMessage = null;
+    }
+
+    private async Task HandleDeleteConfirmed()
+    {
+        if (_doc == null || _deleteBusy) return;
+        _deleteBusy = true;
+        _errorMessage = null;
+        try
+        {
+            await DocumentService.DeleteAsync(Id, _currentUserId);
+            // Éxito: navegar inmediatamente. El modal se cierra al desmontar la página.
+            Nav.NavigateTo("/documents");
+        }
+        catch (ContosoDashboard.Services.Documents.DocumentUnauthorizedAccessException ex) { _errorMessage = ex.Message; }
+        catch (ContosoDashboard.Services.Documents.DocumentNotFoundException) { _errorMessage = "The document no longer exists."; }
+        catch (Exception ex) { _errorMessage = $"Error deleting: {ex.Message}"; }
+        finally { _deleteBusy = false; }
+    }
+
+    private async Task ShowShareDialog()
+    {
+        if (_doc == null) return;
+        if (_availableUsers == null || _availableUsers.Count == 0)
+        {
+            try { _availableUsers = (await UserService.GetAllUsersAsync()).Where(u => u.UserId != _currentUserId).ToList(); }
+            catch { _availableUsers = new List<User>(); }
+        }
+        _showShareDialog = true;
+    }
+
+    private async Task HideShareDialog()
+    {
+        _showShareDialog = false;
+        await Task.CompletedTask;
+    }
+
+    private async Task HandleShareConfirmed(ShareRequest request)
+    {
+        try
+        {
+            var result = await ShareService.ShareAsync(request, _currentUserId);
+            _errorMessage = result.NotificationDelivered
+                ? "Document shared. Notification sent."
+                : "Document shared. (Notification not delivered — the recipient will see it on refresh.)";
+            _showShareDialog = false;
+            await LoadActiveSharesAsync();
+        }
+        catch (ContosoDashboard.Services.Documents.DocumentValidationException ex)
+        {
+            _errorMessage = string.Join("; ", ex.Errors);
+        }
+        catch (InvalidOperationException ex) { _errorMessage = ex.Message; }
+        catch (ContosoDashboard.Services.Documents.DocumentUnauthorizedAccessException ex) { _errorMessage = ex.Message; }
+        catch (Exception ex) { _errorMessage = $"Error al compartir: {ex.Message}"; }
+    }
+
+    private async Task RevokeShareAsync(int documentShareId)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Revoke this access? The recipient will lose permission immediately.");
+        if (!confirmed) return;
+        try
+        {
+            await ShareService.RevokeAsync(documentShareId, _currentUserId);
+            _errorMessage = "Acceso revocado.";
+            await LoadActiveSharesAsync();
+        }
+        catch (Exception ex) { _errorMessage = $"Error al revocar: {ex.Message}"; }
+    }
+
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:N1} KB";
+        return $"{bytes / 1024.0 / 1024.0:N2} MB";
+    }
+
+    private static int ExtractUserId(ClaimsPrincipal user)
+    {
+        var nameId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(nameId, out var id) ? id : 0;
+    }
+}

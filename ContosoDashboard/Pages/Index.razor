@@ -20,7 +20,7 @@
     @if (summary != null)
     {
         <div class="row mb-4">
-            <div class="col-md-3 mb-3">
+            <div class="col-md-2 mb-3">
                 <div class="card summary-card">
                     <div class="card-body">
                         <h5 class="card-title">Active Tasks</h5>
@@ -28,7 +28,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
+            <div class="col-md-2 mb-3">
                 <div class="card summary-card">
                     <div class="card-body">
                         <h5 class="card-title">Due Today</h5>
@@ -36,13 +36,23 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
+            <div class="col-md-2 mb-3">
                 <div class="card summary-card">
                     <div class="card-body">
                         <h5 class="card-title">Active Projects</h5>
                         <p class="card-text display-4 text-info">@summary.ActiveProjects</p>
                     </div>
                 </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <a href="/documents" class="text-decoration-none">
+                    <div class="card summary-card border-primary">
+                        <div class="card-body">
+                            <h5 class="card-title">My Documents</h5>
+                            <p class="card-text display-4 text-primary">@summary.TotalDocuments</p>
+                        </div>
+                    </div>
+                </a>
             </div>
             <div class="col-md-3 mb-3">
                 <div class="card summary-card">
@@ -83,8 +93,14 @@
                 <a href="/tasks" class="list-group-item list-group-item-action">
                     <i class="bi bi-check2-square"></i> View My Tasks
                 </a>
+                <a href="/documents" class="list-group-item list-group-item-action">
+                    <i class="bi bi-file-earmark"></i> View My Documents
+                </a>
                 <a href="/projects" class="list-group-item list-group-item-action">
                     <i class="bi bi-folder"></i> View My Projects
+                </a>
+                <a href="/documents/shared" class="list-group-item list-group-item-action">
+                    <i class="bi bi-share"></i> Shared with me
                 </a>
                 <a href="/notifications" class="list-group-item list-group-item-action">
                     <i class="bi bi-bell"></i> View Notifications
@@ -96,26 +112,7 @@
         </div>
 
         <div class="col-md-6">
-            <h3>Recent Notifications</h3>
-            @if (recentNotifications != null && recentNotifications.Any())
-            {
-                <div class="list-group">
-                    @foreach (var notification in recentNotifications.Take(5))
-                    {
-                        <div class="list-group-item @(!notification.IsRead ? "bg-light" : "")">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">@notification.Title</h6>
-                                <small>@GetRelativeTime(notification.CreatedDate)</small>
-                            </div>
-                            <p class="mb-1">@notification.Message</p>
-                        </div>
-                    }
-                </div>
-            }
-            else
-            {
-                <p class="text-muted">No recent notifications</p>
-            }
+            <RecentDocumentsWidget @ref="_recentDocsWidget" />
         </div>
     </div>
 </div>
@@ -126,6 +123,7 @@
     private List<Notification>? recentNotifications;
     private string userName = "User";
     private int currentUserId = 0;
+    private RecentDocumentsWidget? _recentDocsWidget;
 
     protected override async Task OnInitializedAsync()
     {
@@ -146,6 +144,8 @@
             summary = await DashboardService.GetDashboardSummaryAsync(currentUserId);
             announcements = await DashboardService.GetActiveAnnouncementsAsync();
             recentNotifications = await NotificationService.GetUserNotificationsAsync(currentUserId);
+            // T124: el widget ya cargó via OnInitializedAsync, no necesita recarga manual aquí.
+            if (_recentDocsWidget != null) await _recentDocsWidget.RefreshAsync();
         }
     }
 
