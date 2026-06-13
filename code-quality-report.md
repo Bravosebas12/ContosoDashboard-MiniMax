@@ -1,7 +1,7 @@
 # Reporte de Calidad de Código - ContosoDashboard
 
-> **Fecha de generación**: 2026-06-12 22:45
-> **Versión del proyecto (commit)**: 881c084
+> **Fecha de generación**: 2026-06-13 06:05
+> **Versión del proyecto (commit)**: 5cf4f42
 > **Branch**: 001-documents-management
 > **Scope analizado**: `ContosoDashboard.slnx`
 
@@ -9,12 +9,12 @@
 
 | Métrica | Valor | Estado |
 |---------|-------|--------|
-| Cobertura de líneas | 76.4% | 🟡 Amarillo |
-| Cobertura de branches | 57.65% | 🔴 Rojo |
+| Cobertura de líneas | 76.8% | 🟡 Amarillo |
+| Cobertura de branches | 62% | 🟡 Amarillo |
 | Duplicación de código | 2.15% | 🟢 Verde |
 | Errores de compilación | 0 | 🟢 Verde |
 | Warnings críticos | 13 | 🟢 Verde |
-| Vulnerabilidades NuGet | 61 | 🔴 Rojo |
+| Vulnerabilidades NuGet | 78 | 🔴 Rojo |
 
 Umbrales: 🟢 ≥80% cobertura, ≤3% duplicación, 0 errores, 0 críticos, 0 vulnerabilidades
 Cobertura media 🟡 60-79% · Duplicación media 🟡 3-7%
@@ -26,9 +26,9 @@ Cobertura media 🟡 60-79% · Duplicación media 🟡 3-7%
 ## 1. Cobertura de Código
 
 ### 1.1 Métricas Generales
-- Cobertura de líneas: **76.4%**
-- Cobertura de branches: **57.65%**
-- Cobertura de métodos: **56%**
+- Cobertura de líneas: **76.8%**
+- Cobertura de branches: **62%**
+- Cobertura de métodos: **58.5%**
 
 > Artefacto HTML: `quality-reports/coverage/index.html`
 
@@ -64,7 +64,7 @@ Cobertura media 🟡 60-79% · Duplicación media 🟡 3-7%
 > Artefacto: `quality-reports/duplication/jscpd-report.html` · `jscpd-report.json`
 
 ### 2.1 Resumen
-- Total de líneas: **4374**
+- Total de líneas: **4372**
 - Líneas duplicadas: **94**
 - Porcentaje de duplicación: **2.15%**
 - Bloques duplicados: **10**
@@ -96,8 +96,8 @@ Cobertura media 🟡 60-79% · Duplicación media 🟡 3-7%
 - Warnings de análisis (CA): **10**
 - Warnings de estilo (IDE): **0**
 - Warnings de NuGet (NU): **2**
-- Vulnerabilidades conocidas: **61**
-- Paquetes desactualizados: **59**
+- Vulnerabilidades conocidas: **78**
+- Paquetes desactualizados: **76**
 
 ### 3.2 Top incidencias críticas
 > _Origen: `quality-reports/issues/build.log` (primeras 10)._
@@ -106,14 +106,14 @@ Cobertura media 🟡 60-79% · Duplicación media 🟡 3-7%
 |--------|-------------|-----------|----------|
 | `CS8602` | Desreferencia de una referencia posiblemente NULL. [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Shared\EditMetadataModal.razor:41 | warning |
 | `CS8602` | Desreferencia de una referencia posiblemente NULL. [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Services\TaskService.cs:70 | warning |
-| `CS8604` | Posible argumento de referencia nulo para el par├ímetro "fileStream" en "Task<string?> IMimeTypeValidator.ValidateAndDetectAsync(Stream fileStream, string declaredExtension, CancellationToken ct = default(CancellationToken))". [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Services\Documents\DocumentService.cs:112 | warning |
 | `CS8602` | Desreferencia de una referencia posiblemente NULL. [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Services\TaskService.cs:116 | warning |
 | `CS8602` | Desreferencia de una referencia posiblemente NULL. [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Services\TaskService.cs:190 | warning |
+| `CS8604` | Posible argumento de referencia nulo para el par├ímetro "fileStream" en "Task<string?> IMimeTypeValidator.ValidateAndDetectAsync(Stream fileStream, string declaredExtension, CancellationToken ct = default(CancellationToken))". [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Services\Documents\DocumentService.cs:112 | warning |
 | `CA2007` | Puede llamar a ConfigureAwait en la tarea esperada (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2007) [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Services\UserService.cs:29 | warning |
 | `CA1304` | El comportamiento de "string.ToLower()" podr├¡a variar dependiendo de la configuraci├│n regional del usuario local. Reemplace esta llamada en "UserService.GetUserByEmailAsync(string)" por una llamada a "string.ToLower(CultureInfo)". (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1304) [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Services\UserService.cs:35 | warning |
 | `CA1304` | El comportamiento de "string.ToLower()" podr├¡a variar dependiendo de la configuraci├│n regional del usuario local. Reemplace esta llamada en "UserService.GetUserByEmailAsync(string)" por una llamada a "string.ToLower(CultureInfo)". (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1304) [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Services\UserService.cs:35 | warning |
 | `CA2007` | Puede llamar a ConfigureAwait en la tarea esperada (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2007) [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Services\UserService.cs:34 | warning |
-| `CA2007` | Puede llamar a ConfigureAwait en la tarea esperada (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2007) [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Services\ActivityLogCleanupBackgroundService.cs:45 | warning |
+| `CA1308` | En el m├®todo "OnGetAsync", reemplace la llamada a "ToLowerInvariant" por "ToUpperInvariant". (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1308) [C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\ContosoDashboard.csproj] | C:\Speck kit\ContosoDashboard\ContosoDashboard-MiniMax\ContosoDashboard\Pages\AdminReports\Documents.cshtml.cs:32 | warning |
 
 ### 3.3 Sugerencias de aplicación
 - Aplicar `dotnet format` para correcciones automáticas de estilo.
@@ -151,7 +151,7 @@ Cobertura media 🟡 60-79% · Duplicación media 🟡 3-7%
 
 ### Prioridad Alta (esta semana)
 1. Corregir **0** errores de compilación si los hay (build rojo).
-2. Resolver **61** vulnerabilidades detectadas (actualizar paquetes afectados).
+2. Resolver **78** vulnerabilidades detectadas (actualizar paquetes afectados).
 3. Subir cobertura por debajo del 60% si aplica.
 
 ### Prioridad Media (este sprint)

@@ -145,10 +145,16 @@ if (-not $SkipCoverage) {
         $summaryFile = Join-Path $coverageDir "Summary.txt"
         if (Test-Path $summaryFile) {
             $lines = Get-Content $summaryFile
+            # Extraer SOLO el porcentaje (no la linea completa).
+            # Si hacemos -replace sobre la linea, todos los numeros se concatenan
+            # (ej "62% (62 of 100)" -> "6262100"). Usamos un regex con grupo de captura.
+            $linePct   = ($lines | Where-Object { $_ -match '^\s*Line coverage\s*:\s*(\d+(?:[.,]\d+)?)\s*%' }   | ForEach-Object { [double]($Matches[1] -replace ',', '.') } | Select-Object -First 1)
+            $branchPct = ($lines | Where-Object { $_ -match '^\s*Branch coverage\s*:\s*(\d+(?:[.,]\d+)?)\s*%' } | ForEach-Object { [double]($Matches[1] -replace ',', '.') } | Select-Object -First 1)
+            $methodPct = ($lines | Where-Object { $_ -match '^\s*Method coverage\s*:\s*(\d+(?:[.,]\d+)?)\s*%' } | ForEach-Object { [double]($Matches[1] -replace ',', '.') } | Select-Object -First 1)
             $summary.coverage = [ordered]@{
-                linePct   = ($lines | Select-String "^\s*Line coverage\s*:" | ForEach-Object { ($_ -replace "[^\d.]", "") -as [double] } | Select-Object -First 1)
-                branchPct = ($lines | Select-String "^\s*Branch coverage\s*:" | ForEach-Object { ($_ -replace "[^\d.]", "") -as [double] } | Select-Object -First 1)
-                methodPct = ($lines | Select-String "^\s*Method coverage\s*:" | ForEach-Object { ($_ -replace "[^\d.]", "") -as [double] } | Select-Object -First 1)
+                linePct   = $linePct
+                branchPct = $branchPct
+                methodPct = $methodPct
                 raw       = ($lines -join "`n")
             }
         } else {

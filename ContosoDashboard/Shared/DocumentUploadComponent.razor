@@ -10,7 +10,7 @@
 
 <div class="card mb-3">
     <div class="card-header">
-        <h5 class="mb-0">Subir documento</h5>
+        <h5 class="mb-0">Upload document</h5>
     </div>
     <div class="card-body">
         @if (!string.IsNullOrEmpty(_errorMessage))
@@ -26,7 +26,7 @@
         <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
             <DataAnnotationsValidator />
             <div class="mb-3">
-                <label class="form-label">Archivo <span class="text-danger">*</span></label>
+                <label class="form-label">File <span class="text-danger">*</span></label>
                 <InputFile OnChange="HandleFileSelected" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" />
                 @if (_selectedFile != null)
                 {
@@ -34,17 +34,17 @@
                 }
             </div>
             <div class="mb-3">
-                <label class="form-label">Título <span class="text-danger">*</span></label>
+                <label class="form-label">Title <span class="text-danger">*</span></label>
                 <InputText @bind-Value="_model.Title" class="form-control" maxlength="200" required />
             </div>
             <div class="mb-3">
-                <label class="form-label">Descripción</label>
+                <label class="form-label">Description</label>
                 <InputTextArea @bind-Value="_model.Description" class="form-control" maxlength="2000" rows="2" />
             </div>
             <div class="mb-3">
-                <label class="form-label">Categoría <span class="text-danger">*</span></label>
+                <label class="form-label">Category <span class="text-danger">*</span></label>
                 <InputSelect @bind-Value="_model.Category" class="form-control" required>
-                    <option value="">— Seleccionar —</option>
+                    <option value="">— Select —</option>
                     @foreach (var cat in DocumentConstants.AllowedCategories)
                     {
                         <option value="@cat">@cat</option>
@@ -52,15 +52,15 @@
                 </InputSelect>
             </div>
             <div class="mb-3">
-                <label class="form-label">Etiquetas (separadas por comas, máx 5)</label>
-                <InputText @bind-Value="_model.TagsRaw" class="form-control" placeholder="ej. presupuesto, q4, cliente-a" />
+                <label class="form-label">Tags (comma-separated, max 5)</label>
+                <InputText @bind-Value="_model.TagsRaw" class="form-control" placeholder="e.g. budget, q4, client-a" />
             </div>
             @if (ShowProjectSelector)
             {
                 <div class="mb-3">
-                    <label class="form-label">Proyecto (opcional)</label>
+                    <label class="form-label">Project (optional)</label>
                     <InputSelect @bind-Value="_model.ProjectId" class="form-control" TValue="int?">
-                        <option value="">— Ninguno (personal) —</option>
+                        <option value="">— None (personal) —</option>
                         @if (_availableProjects != null)
                         {
                             @foreach (var p in _availableProjects)
@@ -75,11 +75,11 @@
                 @if (_isUploading)
                 {
                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                    <span>Subiendo...</span>
+                    <span>Uploading...</span>
                 }
                 else
                 {
-                    <span>Subir</span>
+                    <span>Upload</span>
                 }
             </button>
         </EditForm>
@@ -130,10 +130,10 @@
 
     private async Task HandleSubmit()
     {
-        if (_selectedFile == null) { _errorMessage = "Por favor selecciona un archivo."; return; }
-        if (string.IsNullOrWhiteSpace(_model.Title)) { _errorMessage = "El título es obligatorio."; return; }
-        if (string.IsNullOrWhiteSpace(_model.Category)) { _errorMessage = "Por favor selecciona una categoría."; return; }
-        if (_selectedFile.Size > DocumentConstants.MaxFileSizeBytes) { _errorMessage = $"Tamaño máximo: {DocumentConstants.MaxFileSizeBytes / 1024 / 1024} MB."; return; }
+        if (_selectedFile == null) { _errorMessage = "Please select a file."; return; }
+        if (string.IsNullOrWhiteSpace(_model.Title)) { _errorMessage = "Title is required."; return; }
+        if (string.IsNullOrWhiteSpace(_model.Category)) { _errorMessage = "Please select a category."; return; }
+        if (_selectedFile.Size > DocumentConstants.MaxFileSizeBytes) { _errorMessage = $"Maximum size: {DocumentConstants.MaxFileSizeBytes / 1024 / 1024} MB."; return; }
 
         _isUploading = true;
         _progress = 0;

@@ -238,7 +238,7 @@
                 _attachedDocs = result.Items.Where(d => d.TaskId == Id).ToList();
             }
         }
-        catch (Exception ex) { _errorMessage = $"Error al cargar documentos: {ex.Message}"; }
+        catch (Exception ex) { _errorMessage = $"Error loading documents: {ex.Message}"; }
         finally { _loadingDocs = false; }
     }
 
