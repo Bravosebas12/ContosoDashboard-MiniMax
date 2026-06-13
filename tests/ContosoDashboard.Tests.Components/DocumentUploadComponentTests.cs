@@ -25,7 +25,7 @@ public class DocumentUploadComponentTests : TestContext
         var cut = RenderComponent<ContosoDashboard.Shared.DocumentUploadComponent>(parameters =>
             parameters.Add(p => p.OnUploaded, _ => { }));
 
-        cut.Markup.Should().Contain("Upload document");
+        cut.Markup.Should().Contain("Subir documento");
         cut.Find("button[type='submit']").HasAttribute("disabled").Should().BeTrue();
     }
 

@@ -1,5 +1,5 @@
-@* Reusable document upload component. See FR-001..FR-012. *@
-@* Blazor MemoryStream pattern: copy the stream to a MemoryStream immediately to avoid disposal issues. *@
+@* Componente reutilizable de subida de documentos. Ver FR-001..FR-012. *@
+@* Patrón Blazor MemoryStream: copia el stream a un MemoryStream inmediatamente para evitar problemas de disposal. *@
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @using ContosoDashboard.Models
@@ -10,7 +10,7 @@
 
 <div class="card mb-3">
     <div class="card-header">
-        <h5 class="mb-0">Adjuntar documento</h5>
+        <h5 class="mb-0">Subir documento</h5>
     </div>
     <div class="card-body">
         @if (!string.IsNullOrEmpty(_errorMessage))
@@ -52,8 +52,8 @@
                 </InputSelect>
             </div>
             <div class="mb-3">
-                <label class="form-label">Etiquetas (separadas por comas, máx. 5)</label>
-                <InputText @bind-Value="_model.TagsRaw" class="form-control" placeholder="ej. presupuesto, t4, cliente-a" />
+                <label class="form-label">Etiquetas (separadas por comas, máx 5)</label>
+                <InputText @bind-Value="_model.TagsRaw" class="form-control" placeholder="ej. presupuesto, q4, cliente-a" />
             </div>
             @if (ShowProjectSelector)
             {
@@ -79,7 +79,7 @@
                 }
                 else
                 {
-                    <span>Adjuntar</span>
+                    <span>Subir</span>
                 }
             </button>
         </EditForm>
@@ -130,9 +130,9 @@
 
     private async Task HandleSubmit()
     {
-        if (_selectedFile == null) { _errorMessage = "Selecciona un archivo."; return; }
+        if (_selectedFile == null) { _errorMessage = "Por favor selecciona un archivo."; return; }
         if (string.IsNullOrWhiteSpace(_model.Title)) { _errorMessage = "El título es obligatorio."; return; }
-        if (string.IsNullOrWhiteSpace(_model.Category)) { _errorMessage = "Selecciona una categoría."; return; }
+        if (string.IsNullOrWhiteSpace(_model.Category)) { _errorMessage = "Por favor selecciona una categoría."; return; }
         if (_selectedFile.Size > DocumentConstants.MaxFileSizeBytes) { _errorMessage = $"Tamaño máximo: {DocumentConstants.MaxFileSizeBytes / 1024 / 1024} MB."; return; }
 
         _isUploading = true;
@@ -177,7 +177,7 @@
         }
         catch (DocumentValidationException ex) { _errorMessage = string.Join("; ", ex.Errors); }
         catch (DocumentInfectedException ex) { _errorMessage = ex.Message; }
-        catch (Exception ex) { _errorMessage = $"Error al adjuntar: {ex.Message}"; }
+        catch (Exception ex) { _errorMessage = $"Upload failed: {ex.Message}"; }
         finally
         {
             _isUploading = false;
