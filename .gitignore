@@ -357,3 +357,16 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+
+# ============================================================
+# Code Quality Agent (artefactos regenerables)
+# ============================================================
+# quality-reports/ contiene los HTML de cobertura (ReportGenerator),
+# JSON/MD de duplicacion (jscpd), logs de build y resumen estructurado.
+# Todos son regenerables con: pwsh scripts/run-code-quality.ps1
+# Se IGNORAN para mantener el repo ligero.
+quality-reports/
+
+# TestResults/ contiene los .trx y coverage.cobertura.xml generados por
+# `dotnet test`. Regenerable. Se IGNORA.
+TestResults/
